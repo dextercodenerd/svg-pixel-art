@@ -8,7 +8,7 @@ This document covers domain-specific architecture and implementation details for
 
 ## Architecture Overview
 
-Client-only pixel-art editor SPA built with Vite 8, Vue 3, TypeScript, and Pinia. Tailwind CSS and Reka UI are planned additions (not yet installed).
+Client-only pixel-art editor SPA built with Vite 8, Vue 3, TypeScript, and Pinia. Tailwind CSS and Reka UI are installed; Phase 1 wires them into the build.
 
 ### Editor data model
 
@@ -35,16 +35,19 @@ The core type is `EditorDocument`:
 
 ### Tools (v1)
 
-`pencil` (with brush sizes) · `line` · `fill` (flood) · `eyedropper`
+`pencil` (with brush sizes) · `eraser` · `line` · `fill` (flood) · `eyedropper`
 
 ### Keyboard shortcuts (fixed set)
 
 | Key | Action |
 |-----|--------|
 | P | Pencil |
+| E | Eraser |
 | L | Line |
 | F | Fill |
 | I | Eyedropper |
+| X | Swap FG/BG |
+| [/] | Decrease/increase brush size |
 | Ctrl/Cmd+Z | Undo |
 | Ctrl/Cmd+Shift+Z | Redo |
 | +/- | Zoom in/out |

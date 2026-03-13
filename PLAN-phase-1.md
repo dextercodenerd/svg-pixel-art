@@ -38,7 +38,8 @@ History stores full `EditorDocument` snapshots, not just pixel arrays.
 
 ## Checklist
 
-- [ ] 1. Install `tailwindcss`, `@tailwindcss/vite`, and `reka-ui`. Add `@tailwindcss/vite` to `vite.config.ts` plugins. Replace `style.css` body with `@import "tailwindcss";` plus editor theme custom properties.
+- [ ] 1. Configure Tailwind: add `@tailwindcss/vite` plugin to `vite.config.ts`, replace `style.css` body with `@import "tailwindcss";` plus editor theme custom properties. (`tailwindcss`, `@tailwindcss/vite`, and `reka-ui` are already installed — no `yarn add` needed.) Confirm `yarn build` passes.
+- [ ] 1b. *(Optional)* Add `vitest` and `@vue/test-utils` to `devDependencies`; create a `tests/` directory with a smoke test (e.g. `isTransparentPixel` from `src/types/index.ts`). Lets CI verify pure-function units starting from Phase 3.
 - [ ] 2. Create `src/types/index.ts` with the shared types and constants above, plus helpers such as `isTransparentPixel(value)` and `normalizeTransparentPixel(value)`.
 - [ ] 3. Create `src/stores/color.ts`:
   - State: `fg`, `bg`, `activeSlot`.

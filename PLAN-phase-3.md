@@ -55,7 +55,10 @@
   - Clicking selects brush size.
   - `[` and `]` cycle sizes.
 
-## Keyboard Shortcuts (tools)
+## Keyboard Shortcuts (tools) — *deferred to Phase 6 (`useKeyboard.ts`)*
+
+> These shortcuts are listed here for reference only. **Do not implement `useKeyboard.ts` in this phase.** Wiring the full keyboard shortcut map is Phase 6 work.
+> Exception: `BrushSizePicker.vue` (item 6) may handle `[`/`]` locally via a component-level `keydown` listener as a convenience, but this is optional and must not block Phase 3 sign-off.
 
 | Key | Action |
 |---|---|

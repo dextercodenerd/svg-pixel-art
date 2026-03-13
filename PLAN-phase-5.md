@@ -1,6 +1,6 @@
-# Phase 5 — Import / Export + Polish
+# Phase 5 — I/O + Persistence
 
-**Goal:** Complete the I/O pipeline, draft restore, dialogs, keyboard shortcuts, document naming, and responsive polish.
+**Goal:** Complete the I/O pipeline, draft restore, document naming, and the `DocumentActions` UI. Keyboard shortcuts, dialogs, and responsive polish are Phase 6.
 
 ## Checklist
 
@@ -36,57 +36,16 @@
   - `triggerImport()` clicks it.
   - Before replacing the current document, always show confirmation dialog in v1.
   - On success: `editorStore.loadDocument(doc)`, `editorStore.resetViewState()`, `historyStore.resetWith(doc)`, `saveDraft(doc)`.
-- [ ] 6. Create `src/composables/useKeyboard.ts`:
-  - Single `window` `keydown` listener.
-  - Support `Ctrl` and `Meta` as the command modifier.
-  - Implement the full shortcut table below.
-  - Do not support `Ctrl/Cmd+Y` redo.
-  - Skip when focus is inside `input`, `textarea`, or other editable fields.
-- [ ] 7. Create `src/components/editor/DocumentActions.vue`:
+- [ ] 6. Create `src/components/editor/DocumentActions.vue`:
   - Editable document name field.
   - New, import, export JSON, and export SVG actions.
   - Programmatic download via `Blob` + `URL.createObjectURL`.
   - Export filenames derived from document metadata.
-- [ ] 8. Create `src/components/dialogs/NewDocumentDialog.vue`:
-  - Reka UI Dialog.
-  - Size presets as Reka UI ToggleGroup.
-  - Custom width/height numeric inputs.
-  - Fill options: transparent or any picked RGBA color.
-  - Document name input defaulting to `untitled-svg-pixel-art`.
-  - On confirm: always show `ConfirmDialog` before replacing the current document in v1.
-  - On success: create document, reset view state, reset history baseline, save draft.
-- [ ] 9. Create `src/components/dialogs/ConfirmDialog.vue`:
-  - Generic Reka UI Dialog with title, message, confirm, and cancel.
-- [ ] 10. On app startup (`EditorShell.vue` `onMounted`):
+- [ ] 7. On app startup (`EditorShell.vue` `onMounted`):
   - Call `loadDraft()`.
   - If valid, load it immediately with no prompt, reset history baseline to that document, and reset the viewport state.
   - If missing or invalid, create a transparent `32x32` document named `untitled-svg-pixel-art`, reset history baseline, and reset the viewport state.
   - Preserve palette and current `FG/BG` colors across document replacement.
-- [ ] 11. Final polish:
-  - `focus-visible` outlines on all interactive elements.
-  - Reka UI Tooltips on toolbar/actions.
-  - Canvas `contextmenu` prevented.
-  - Responsive side-panel collapse at `< 768px`.
-
-## Full Keyboard Shortcut Table
-
-| Key | Action |
-|---|---|
-| `P` | Pencil |
-| `E` | Eraser |
-| `L` | Line |
-| `F` | Fill |
-| `I` | Eyedropper |
-| `X` | Swap FG/BG |
-| `[` / `]` | Decrease / increase brush size |
-| `Ctrl/Cmd+Z` | Undo |
-| `Ctrl/Cmd+Shift+Z` | Redo |
-| `+` / `-` | Zoom in / out |
-| `0` | Reset zoom |
-| `G` | Toggle grid |
-| `Ctrl/Cmd+S` | Export JSON |
-| `Ctrl/Cmd+Shift+S` | Export SVG |
-| `Ctrl/Cmd+O` | Import file |
 
 ## Verify
 
@@ -96,8 +55,5 @@
 - [ ] SVG export emits no transparent rects and preserves semitransparent pixels via `fill-opacity`.
 - [ ] PNG import preserves dimensions and exact colors, and normalizes fully transparent pixels to empty string.
 - [ ] Auto-save restores the draft on refresh.
-- [ ] New/import always show a replacement confirmation dialog.
 - [ ] Undo history is not persisted, but restored/new/imported documents start with a baseline snapshot.
 - [ ] Export filenames come from document name, with `untitled-svg-pixel-art` as fallback.
-- [ ] All keyboard shortcuts work with both `Ctrl` and `Cmd`, and none fire inside editable fields.
-- [ ] Responsive layout stacks side panels correctly at `< 768px`.

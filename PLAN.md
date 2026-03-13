@@ -66,7 +66,7 @@ v1 targets a single-layer editor with responsive layout, dense-grid document sto
 - Verify touch interactions: one-finger drawing, two-finger pan/zoom, explicit active color slot, and gesture-end zoom snapping.
 
 ### Assumptions and Defaults
-- Tailwind CSS and `Reka UI` will be added after the scaffold stage; neither is present in the current repo yet.
+- Tailwind CSS (`tailwindcss`, `@tailwindcss/vite`) and `reka-ui` are already present in `package.json`; Phase 1 wires them into `vite.config.ts` and `style.css`.
 - Transparent pixels may be stored as either empty string or `#00000000`, but all editor operations treat them as identical.
 - Snapshot history stores full-document snapshots, not patches or diffs.
 - v1 stays single-layer and browser-only, with no backend, sync, or server persistence.
@@ -108,7 +108,8 @@ Design decisions confirmed through planning:
 | 2 | [PLAN-phase-2.md](./PLAN-phase-2.md) | Canvas rendering — checkerboard, logical zoom, pan, grid, cursor |
 | 3 | [PLAN-phase-3.md](./PLAN-phase-3.md) | Drawing tools — desktop and touch input, history commits |
 | 4 | [PLAN-phase-4.md](./PLAN-phase-4.md) | Color system — picker, slots, palette |
-| 5 | [PLAN-phase-5.md](./PLAN-phase-5.md) | Import / export + polish — I/O, shortcuts, draft restore, dialogs |
+| 5 | [PLAN-phase-5.md](./PLAN-phase-5.md) | I/O + Persistence — draft storage, auto-save, export/import services, DocumentActions, startup restore |
+| 6 | [PLAN-phase-6.md](./PLAN-phase-6.md) | Keyboard + Dialogs + Polish — useKeyboard, NewDocumentDialog, ConfirmDialog, responsive collapse, a11y polish |
 
 ### Critical Files
 
