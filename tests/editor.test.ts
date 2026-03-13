@@ -88,6 +88,24 @@ describe('editor store', () => {
     expect(historyStore.snapshots).toHaveLength(1)
   })
 
+  it('loadDocument normalizes transparent pixels into empty strings', () => {
+    const editorStore = useEditorStore()
+    const historyStore = useHistoryStore()
+    const external = createEditorDocument({ width: 2, height: 2, name: 'loaded' })
+
+    external.pixels = ['#00000000', '#102030ff', '', '#00000000']
+
+    editorStore.loadDocument(external)
+
+    expect(editorStore.document.pixels).toEqual([EMPTY_PIXEL, '#102030ff', EMPTY_PIXEL, EMPTY_PIXEL])
+    expect(historyStore.currentSnapshot?.pixels).toEqual([
+      EMPTY_PIXEL,
+      '#102030ff',
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+    ])
+  })
+
   it('loadDocument throws when pixel data is shorter than the declared dimensions', () => {
     const editorStore = useEditorStore()
     const historyStore = useHistoryStore()
@@ -127,6 +145,23 @@ describe('editor store', () => {
 
     expect(() => editorStore.setPixels(Array(15).fill(EMPTY_PIXEL))).toThrow()
     expect(() => editorStore.setPixels(Array(17).fill(EMPTY_PIXEL))).toThrow()
+  })
+
+  it('setPixels normalizes transparent pixels before storing and snapshotting', () => {
+    const editorStore = useEditorStore()
+    const historyStore = useHistoryStore()
+
+    editorStore.newDocument({ width: 2, height: 2 })
+
+    editorStore.setPixels(['#00000000', '#abcdef88', '', '#00000000'])
+
+    expect(editorStore.document.pixels).toEqual([EMPTY_PIXEL, '#abcdef88', EMPTY_PIXEL, EMPTY_PIXEL])
+    expect(historyStore.currentSnapshot?.pixels).toEqual([
+      EMPTY_PIXEL,
+      '#abcdef88',
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+    ])
   })
 
   it('renameDocument updates the document name, updatedAt, and pushes history', () => {

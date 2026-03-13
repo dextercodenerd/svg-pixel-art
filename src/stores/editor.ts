@@ -8,6 +8,7 @@ import {
   createIsoTimestamp,
   EMPTY_PIXEL,
   MAX_CANVAS_SIZE,
+  normalizeTransparentPixel,
 } from '../types'
 
 export const useEditorStore = defineStore('editor', () => {
@@ -45,7 +46,7 @@ export const useEditorStore = defineStore('editor', () => {
     assertCanvasSize(nextDocument.width, nextDocument.height)
     assertPixelBuffer(nextDocument)
 
-    const clonedDocument = cloneDocument(nextDocument)
+    const clonedDocument = normalizeDocumentPixels(nextDocument)
     document.value = clonedDocument
     resetViewState()
     useHistoryStore().resetWith(clonedDocument)
@@ -70,7 +71,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     document.value = {
       ...document.value,
-      pixels: [...pixels],
+      pixels: pixels.map(normalizeTransparentPixel),
       metadata: {
         ...document.value.metadata,
         updatedAt: createIsoTimestamp(),
@@ -114,7 +115,14 @@ export const useEditorStore = defineStore('editor', () => {
       return
     }
 
-    document.value = cloneDocument(nextDocument)
+    document.value = normalizeDocumentPixels(nextDocument)
+  }
+
+  function normalizeDocumentPixels(nextDocument: EditorDocument): EditorDocument {
+    return {
+      ...cloneDocument(nextDocument),
+      pixels: nextDocument.pixels.map(normalizeTransparentPixel),
+    }
   }
 
   function assertCanvasSize(width: number, height: number) {
