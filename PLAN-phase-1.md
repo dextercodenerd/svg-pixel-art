@@ -38,32 +38,32 @@ History stores full `EditorDocument` snapshots, not just pixel arrays.
 
 ## Checklist
 
-- [ ] 1. Configure Tailwind: add `@tailwindcss/vite` plugin to `vite.config.ts`, replace `style.css` body with `@import "tailwindcss";` plus editor theme custom properties. (`tailwindcss`, `@tailwindcss/vite`, and `reka-ui` are already installed — no `yarn add` needed.) Confirm `yarn build` passes.
-- [ ] 1b. *(Optional)* Add `vitest` and `@vue/test-utils` to `devDependencies`; create a `tests/` directory with a smoke test (e.g. `isTransparentPixel` from `src/types/index.ts`). Lets CI verify pure-function units starting from Phase 3.
-- [ ] 2. Create `src/types/index.ts` with the shared types and constants above, plus helpers such as `isTransparentPixel(value)` and `normalizeTransparentPixel(value)`.
-- [ ] 3. Create `src/stores/color.ts`:
+- [x] 1. Configure Tailwind: add `@tailwindcss/vite` plugin to `vite.config.ts`, replace `style.css` body with `@import "tailwindcss";` plus editor theme custom properties. (`tailwindcss`, `@tailwindcss/vite`, and `reka-ui` are already installed — no `yarn add` needed.) Confirm `yarn build` passes.
+- [x] 1b. *(Optional)* Add `vitest` and `@vue/test-utils` to `devDependencies`; create a `tests/` directory with a smoke test (e.g. `isTransparentPixel` from `src/types/index.ts`). Lets CI verify pure-function units starting from Phase 3.
+- [x] 2. Create `src/types/index.ts` with the shared types and constants above, plus helpers such as `isTransparentPixel(value)` and `normalizeTransparentPixel(value)`.
+- [x] 3. Create `src/stores/color.ts`:
   - State: `fg`, `bg`, `activeSlot`.
   - Defaults: `fg = '#000000ff'`, `bg = '#ffffffff'`, `activeSlot = 'fg'`.
   - Actions: `setFg`, `setBg`, `swap`, `setActiveSlot`.
-- [ ] 4. Create `src/stores/history.ts`:
+- [x] 4. Create `src/stores/history.ts`:
   - State: `snapshots: EditorDocument[]`, `index: number`.
   - Actions: `resetWith(document)`, `push(document)`, `undo()`, `redo()`, `clear()`.
   - Rules: clone on write, discard redo branch on new push, trim to `MAX_HISTORY_SNAPSHOTS`, support `50` undo steps plus current state.
   - Getters: `canUndo`, `canRedo`, `currentSnapshot`.
-- [ ] 5. Create `src/stores/palette.ts`:
+- [x] 5. Create `src/stores/palette.ts`:
   - State: `swatches: string[]`.
   - Load from `localStorage` key `'pixel-art:palette'` on init.
   - Default to 8 neutral swatches.
   - Actions: `addSwatch` (max 32), `removeSwatch`, `updateSwatch`.
   - Persist automatically via `watch`.
-- [ ] 6. Create `src/stores/editor.ts`:
+- [x] 6. Create `src/stores/editor.ts`:
   - State: `document`, `activeTool`, `brushSize`, `zoom`, `gridVisible`, `panOffset`.
   - Defaults: `activeTool = 'pencil'`, `brushSize = 1`, `zoom = 1`, `gridVisible = true`, `panOffset = { x: 0, y: 0 }`.
   - Actions: `newDocument`, `loadDocument`, `renameDocument`, `setPixels`, `setTool`, `setBrushSize`, `setZoom`, `toggleGrid`, `setGridVisible`, `setPan`, `resetViewState`.
   - Document-changing actions update `metadata.updatedAt`.
   - `newDocument` accepts an exact RGBA fill value or transparency.
-- [ ] 7. Wire `createPinia()` in `src/main.ts`.
-- [ ] 8. Strip `App.vue` and `HelloWorld.vue` to a minimal placeholder shell.
+- [x] 7. Wire `createPinia()` in `src/main.ts`.
+- [x] 8. Strip `App.vue` and `HelloWorld.vue` to a minimal placeholder shell.
 
 ## Verify
 

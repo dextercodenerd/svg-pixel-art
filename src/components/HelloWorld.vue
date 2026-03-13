@@ -1,93 +1,135 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import viteLogo from '../assets/vite.svg'
-import heroImg from '../assets/hero.png'
-import vueLogo from '../assets/vue.svg'
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useColorStore } from '../stores/color'
+import { useEditorStore } from '../stores/editor'
+import { useHistoryStore } from '../stores/history'
+import { usePaletteStore } from '../stores/palette'
 
-const count = ref(0)
+const editorStore = useEditorStore()
+const colorStore = useColorStore()
+const historyStore = useHistoryStore()
+const paletteStore = usePaletteStore()
+
+const { document, activeTool, brushSize, zoom, gridVisible } = storeToRefs(editorStore)
+const { fg, bg, activeSlot } = storeToRefs(colorStore)
+const { canUndo, canRedo } = storeToRefs(historyStore)
+const { swatches, persistenceStatus, persistenceNoticeDismissed } = storeToRefs(paletteStore)
+
+const documentSummary = computed(
+  () => `${document.value.width}x${document.value.height} • ${document.value.pixels.length} pixels`,
+)
+
+const showPersistenceNotice = computed(
+  () => persistenceStatus.value === 'unavailable' && !persistenceNoticeDismissed.value,
+)
 </script>
 
 <template>
-  <section id="center">
-    <div class="hero">
-      <img :src="heroImg" class="base" width="170" height="179" alt="" />
-      <img :src="vueLogo" class="framework" alt="Vue logo" />
-      <img :src="viteLogo" class="vite" alt="Vite logo" />
+  <section
+    class="mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8"
+  >
+    <div class="grid w-full gap-6 lg:grid-cols-[1.3fr_0.9fr]">
+      <article class="panel p-6 sm:p-8">
+        <p class="eyebrow">Phase 1 foundation</p>
+        <h1 class="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">SVG Pixel Art Editor</h1>
+        <p class="mt-4 max-w-2xl text-base text-[var(--ink-soft)] sm:text-lg">
+          Core editor contracts are wired in: shared types, Pinia stores, history snapshots, palette
+          persistence, and the starter workspace shell for the next phases.
+        </p>
+
+        <div class="mt-8 grid gap-4 sm:grid-cols-2">
+          <div class="status-card">
+            <span class="status-label">Document</span>
+            <strong class="status-value">{{ document.metadata.name }}</strong>
+            <span class="status-detail">{{ documentSummary }}</span>
+          </div>
+          <div class="status-card">
+            <span class="status-label">Viewport</span>
+            <strong class="status-value">{{ zoom }}x zoom</strong>
+            <span class="status-detail"
+              >Grid {{ gridVisible ? 'on' : 'off' }}, brush {{ brushSize }}</span
+            >
+          </div>
+          <div class="status-card">
+            <span class="status-label">Tooling</span>
+            <strong class="status-value">{{ activeTool }}</strong>
+            <span class="status-detail"
+              >Undo {{ canUndo ? 'ready' : 'empty' }}, redo {{ canRedo ? 'ready' : 'empty' }}</span
+            >
+          </div>
+          <div class="status-card">
+            <span class="status-label">Colors</span>
+            <strong class="status-value">{{ activeSlot.toUpperCase() }} active</strong>
+            <span class="status-detail">FG {{ fg }} • BG {{ bg }}</span>
+          </div>
+        </div>
+      </article>
+
+      <aside class="panel p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="eyebrow">Store snapshot</p>
+            <h2 class="mt-2 text-2xl font-semibold tracking-tight">Ready for canvas work</h2>
+          </div>
+          <span
+            class="rounded-full border border-[var(--panel-border-strong)] px-3 py-1 text-xs uppercase tracking-[0.22em] text-[var(--ink-soft)]"
+          >
+            Pinia
+          </span>
+        </div>
+
+        <div class="mt-6 space-y-5 text-sm text-[var(--ink-soft)]">
+          <div>
+            <p class="text-xs uppercase tracking-[0.22em] text-[var(--ink-muted)]">Palette</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <span
+                v-for="swatch in swatches"
+                :key="swatch"
+                class="h-8 w-8 rounded-md border border-black/15 shadow-sm"
+                :style="{ background: swatch }"
+                :title="swatch"
+              />
+            </div>
+
+            <div
+              v-if="showPersistenceNotice"
+              class="mt-4 rounded-2xl border border-amber-900/20 bg-amber-50/80 p-4 text-sm text-amber-950"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="space-y-2">
+                  <p class="text-xs uppercase tracking-[0.22em] text-amber-800">
+                    Palette saving unavailable
+                  </p>
+                  <p class="leading-6">
+                    We save your palette on this device so it is still here next time. Your browser
+                    is currently blocking that, so colors will reset after this session.
+                  </p>
+                  <p class="leading-6 text-amber-900/80">
+                    You can still edit colors normally right now; only saving them for later is
+                    affected.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="rounded-full border border-amber-900/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-900 transition hover:bg-amber-100"
+                  @click="paletteStore.markPersistenceNoticeDismissed()"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-[var(--panel-border)] bg-[var(--panel-inner)] p-4">
+            <p class="text-xs uppercase tracking-[0.22em] text-[var(--ink-muted)]">Next up</p>
+            <p class="mt-2 leading-6">
+              Phase 2 can now build on stable document, history, and viewport state without
+              revisiting the editor contracts.
+            </p>
+          </div>
+        </div>
+      </aside>
     </div>
-    <div>
-      <h1>Get started</h1>
-      <p>Edit <code>src/App.vue</code> and save to test <code>HMR</code></p>
-    </div>
-    <button class="counter" @click="count++">Count is {{ count }}</button>
   </section>
-
-  <div class="ticks"></div>
-
-  <section id="next-steps">
-    <div id="docs">
-      <svg class="icon" role="presentation" aria-hidden="true">
-        <use href="/icons.svg#documentation-icon"></use>
-      </svg>
-      <h2>Documentation</h2>
-      <p>Your questions, answered</p>
-      <ul>
-        <li>
-          <a href="https://vite.dev/" target="_blank">
-            <img class="logo" :src="viteLogo" alt="" />
-            Explore Vite
-          </a>
-        </li>
-        <li>
-          <a href="https://vuejs.org/" target="_blank">
-            <img class="button-icon" :src="vueLogo" alt="" />
-            Learn more
-          </a>
-        </li>
-      </ul>
-    </div>
-    <div id="social">
-      <svg class="icon" role="presentation" aria-hidden="true">
-        <use href="/icons.svg#social-icon"></use>
-      </svg>
-      <h2>Connect with us</h2>
-      <p>Join the Vite community</p>
-      <ul>
-        <li>
-          <a href="https://github.com/vitejs/vite" target="_blank">
-            <svg class="button-icon" role="presentation" aria-hidden="true">
-              <use href="/icons.svg#github-icon"></use>
-            </svg>
-            GitHub
-          </a>
-        </li>
-        <li>
-          <a href="https://chat.vite.dev/" target="_blank">
-            <svg class="button-icon" role="presentation" aria-hidden="true">
-              <use href="/icons.svg#discord-icon"></use>
-            </svg>
-            Discord
-          </a>
-        </li>
-        <li>
-          <a href="https://x.com/vite_js" target="_blank">
-            <svg class="button-icon" role="presentation" aria-hidden="true">
-              <use href="/icons.svg#x-icon"></use>
-            </svg>
-            X.com
-          </a>
-        </li>
-        <li>
-          <a href="https://bsky.app/profile/vite.dev" target="_blank">
-            <svg class="button-icon" role="presentation" aria-hidden="true">
-              <use href="/icons.svg#bluesky-icon"></use>
-            </svg>
-            Bluesky
-          </a>
-        </li>
-      </ul>
-    </div>
-  </section>
-
-  <div class="ticks"></div>
-  <section id="spacer"></section>
 </template>
