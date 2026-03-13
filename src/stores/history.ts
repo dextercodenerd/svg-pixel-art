@@ -1,58 +1,67 @@
 import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
 import type { EditorDocument } from '../types'
 import { MAX_HISTORY_SNAPSHOTS, cloneDocument, createEditorDocument } from '../types'
 
-interface HistoryState {
-  snapshots: EditorDocument[]
-  index: number
-}
+export const useHistoryStore = defineStore('history', () => {
+  const snapshots = ref<EditorDocument[]>([createEditorDocument()])
+  const index = ref(0)
 
-export const useHistoryStore = defineStore('history', {
-  state: (): HistoryState => ({
-    snapshots: [createEditorDocument()],
-    index: 0,
-  }),
-  getters: {
-    canUndo: state => state.index > 0,
-    canRedo: state => state.index < state.snapshots.length - 1,
-    currentSnapshot: state => state.snapshots[state.index] ?? null,
-  },
-  actions: {
-    resetWith(document: EditorDocument) {
-      this.snapshots = [cloneDocument(document)]
-      this.index = 0
-    },
-    push(document: EditorDocument) {
-      const nextSnapshots = this.snapshots.slice(0, this.index + 1).concat(cloneDocument(document))
+  const canUndo = computed(() => index.value > 0)
+  const canRedo = computed(() => index.value < snapshots.value.length - 1)
+  const currentSnapshot = computed(() => snapshots.value[index.value] ?? null)
 
-      if (nextSnapshots.length > MAX_HISTORY_SNAPSHOTS) {
-        this.snapshots = nextSnapshots.slice(nextSnapshots.length - MAX_HISTORY_SNAPSHOTS)
-        this.index = this.snapshots.length - 1
-        return
-      }
+  function resetWith(document: EditorDocument) {
+    snapshots.value = [cloneDocument(document)]
+    index.value = 0
+  }
 
-      this.snapshots = nextSnapshots
-      this.index = this.snapshots.length - 1
-    },
-    undo() {
-      if (!this.canUndo) {
-        return null
-      }
+  function push(document: EditorDocument) {
+    const nextSnapshots = snapshots.value.slice(0, index.value + 1).concat(cloneDocument(document))
 
-      this.index -= 1
-      return cloneDocument(this.snapshots[this.index])
-    },
-    redo() {
-      if (!this.canRedo) {
-        return null
-      }
+    if (nextSnapshots.length > MAX_HISTORY_SNAPSHOTS) {
+      snapshots.value = nextSnapshots.slice(nextSnapshots.length - MAX_HISTORY_SNAPSHOTS)
+      index.value = snapshots.value.length - 1
+      return
+    }
 
-      this.index += 1
-      return cloneDocument(this.snapshots[this.index])
-    },
-    clear() {
-      this.snapshots = []
-      this.index = -1
-    },
-  },
+    snapshots.value = nextSnapshots
+    index.value = snapshots.value.length - 1
+  }
+
+  function undo() {
+    if (!canUndo.value) {
+      return null
+    }
+
+    index.value -= 1
+    return cloneDocument(snapshots.value[index.value])
+  }
+
+  function redo() {
+    if (!canRedo.value) {
+      return null
+    }
+
+    index.value += 1
+    return cloneDocument(snapshots.value[index.value])
+  }
+
+  function clear() {
+    snapshots.value = []
+    index.value = -1
+  }
+
+  return {
+    snapshots,
+    index,
+    canUndo,
+    canRedo,
+    currentSnapshot,
+    resetWith,
+    push,
+    undo,
+    redo,
+    clear,
+  }
 })

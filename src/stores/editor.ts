@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import { useHistoryStore } from './history'
 import type { BrushSize, EditorDocument, PanOffset, ToolId, ZoomLevel } from '../types'
 import {
@@ -9,116 +10,145 @@ import {
   MAX_CANVAS_SIZE,
 } from '../types'
 
-interface EditorState {
-  document: EditorDocument
-  activeTool: ToolId
-  brushSize: BrushSize
-  zoom: ZoomLevel
-  gridVisible: boolean
-  panOffset: PanOffset
-}
+export const useEditorStore = defineStore('editor', () => {
+  const document = ref<EditorDocument>(createEditorDocument())
+  const activeTool = ref<ToolId>('pencil')
+  const brushSize = ref<BrushSize>(1)
+  const zoom = ref<ZoomLevel>(1)
+  const gridVisible = ref(true)
+  const panOffset = ref<PanOffset>({ x: 0, y: 0 })
 
-export const useEditorStore = defineStore('editor', {
-  state: (): EditorState => ({
-    document: createEditorDocument(),
-    activeTool: 'pencil',
-    brushSize: 1,
-    zoom: 1,
-    gridVisible: true,
-    panOffset: { x: 0, y: 0 },
-  }),
-  actions: {
-    newDocument(options?: { width?: number; height?: number; fill?: string; name?: string }) {
-      const width = options?.width ?? 16
-      const height = options?.height ?? 16
+  function newDocument(options?: {
+    width?: number
+    height?: number
+    fill?: string
+    name?: string
+  }) {
+    const width = options?.width ?? 16
+    const height = options?.height ?? 16
 
-      this.assertCanvasSize(width, height)
+    assertCanvasSize(width, height)
 
-      const nextDocument = createEditorDocument({
-        width,
-        height,
-        fill: options?.fill ?? EMPTY_PIXEL,
-        name: options?.name,
-      })
+    const nextDocument = createEditorDocument({
+      width,
+      height,
+      fill: options?.fill ?? EMPTY_PIXEL,
+      name: options?.name,
+    })
 
-      this.document = nextDocument
-      this.resetViewState()
-      useHistoryStore().resetWith(nextDocument)
-    },
-    loadDocument(document: EditorDocument) {
-      this.assertCanvasSize(document.width, document.height)
-      this.assertPixelBuffer(document)
+    document.value = nextDocument
+    resetViewState()
+    useHistoryStore().resetWith(nextDocument)
+  }
 
-      const nextDocument = cloneDocument(document)
-      this.document = nextDocument
-      this.resetViewState()
-      useHistoryStore().resetWith(nextDocument)
-    },
-    renameDocument(name: string) {
-      this.document = {
-        ...this.document,
-        metadata: {
-          ...this.document.metadata,
-          name,
-          updatedAt: createIsoTimestamp(),
-        },
-      }
-      useHistoryStore().push(this.document)
-    },
-    setPixels(pixels: string[]) {
-      if (pixels.length !== this.document.width * this.document.height) {
-        throw new Error('Pixel array length must match document dimensions.')
-      }
+  function loadDocument(nextDocument: EditorDocument) {
+    assertCanvasSize(nextDocument.width, nextDocument.height)
+    assertPixelBuffer(nextDocument)
 
-      this.document = {
-        ...this.document,
-        pixels: [...pixels],
-        metadata: {
-          ...this.document.metadata,
-          updatedAt: createIsoTimestamp(),
-        },
-      }
-      useHistoryStore().push(this.document)
-    },
-    setTool(tool: ToolId) {
-      this.activeTool = tool
-    },
-    setBrushSize(size: BrushSize) {
-      this.brushSize = size
-    },
-    setZoom(zoom: ZoomLevel) {
-      this.zoom = zoom
-    },
-    toggleGrid() {
-      this.gridVisible = !this.gridVisible
-    },
-    setGridVisible(visible: boolean) {
-      this.gridVisible = visible
-    },
-    setPan(offset: PanOffset) {
-      this.panOffset = { ...offset }
-    },
-    resetViewState() {
-      this.zoom = 1
-      this.gridVisible = true
-      this.panOffset = { x: 0, y: 0 }
-    },
-    syncWithHistory(document: EditorDocument | null) {
-      if (document == null) {
-        return
-      }
+    const clonedDocument = cloneDocument(nextDocument)
+    document.value = clonedDocument
+    resetViewState()
+    useHistoryStore().resetWith(clonedDocument)
+  }
 
-      this.document = cloneDocument(document)
-    },
-    assertCanvasSize(width: number, height: number) {
-      if (width < 1 || height < 1 || width > MAX_CANVAS_SIZE || height > MAX_CANVAS_SIZE) {
-        throw new Error(`Document dimensions must be between 1 and ${MAX_CANVAS_SIZE}.`)
-      }
-    },
-    assertPixelBuffer(document: EditorDocument) {
-      if (document.pixels.length !== document.width * document.height) {
-        throw new Error('Pixel array length must match document dimensions.')
-      }
-    },
-  },
+  function renameDocument(name: string) {
+    document.value = {
+      ...document.value,
+      metadata: {
+        ...document.value.metadata,
+        name,
+        updatedAt: createIsoTimestamp(),
+      },
+    }
+    useHistoryStore().push(document.value)
+  }
+
+  function setPixels(pixels: string[]) {
+    if (pixels.length !== document.value.width * document.value.height) {
+      throw new Error('Pixel array length must match document dimensions.')
+    }
+
+    document.value = {
+      ...document.value,
+      pixels: [...pixels],
+      metadata: {
+        ...document.value.metadata,
+        updatedAt: createIsoTimestamp(),
+      },
+    }
+    useHistoryStore().push(document.value)
+  }
+
+  function setTool(tool: ToolId) {
+    activeTool.value = tool
+  }
+
+  function setBrushSize(size: BrushSize) {
+    brushSize.value = size
+  }
+
+  function setZoom(nextZoom: ZoomLevel) {
+    zoom.value = nextZoom
+  }
+
+  function toggleGrid() {
+    gridVisible.value = !gridVisible.value
+  }
+
+  function setGridVisible(visible: boolean) {
+    gridVisible.value = visible
+  }
+
+  function setPan(offset: PanOffset) {
+    panOffset.value = { ...offset }
+  }
+
+  function resetViewState() {
+    zoom.value = 1
+    gridVisible.value = true
+    panOffset.value = { x: 0, y: 0 }
+  }
+
+  function syncWithHistory(nextDocument: EditorDocument | null) {
+    if (nextDocument == null) {
+      return
+    }
+
+    document.value = cloneDocument(nextDocument)
+  }
+
+  function assertCanvasSize(width: number, height: number) {
+    if (width < 1 || height < 1 || width > MAX_CANVAS_SIZE || height > MAX_CANVAS_SIZE) {
+      throw new Error(`Document dimensions must be between 1 and ${MAX_CANVAS_SIZE}.`)
+    }
+  }
+
+  function assertPixelBuffer(nextDocument: EditorDocument) {
+    if (nextDocument.pixels.length !== nextDocument.width * nextDocument.height) {
+      throw new Error('Pixel array length must match document dimensions.')
+    }
+  }
+
+  return {
+    document,
+    activeTool,
+    brushSize,
+    zoom,
+    gridVisible,
+    panOffset,
+    newDocument,
+    loadDocument,
+    renameDocument,
+    setPixels,
+    setTool,
+    setBrushSize,
+    setZoom,
+    toggleGrid,
+    setGridVisible,
+    setPan,
+    resetViewState,
+    syncWithHistory,
+    assertCanvasSize,
+    assertPixelBuffer,
+  }
 })

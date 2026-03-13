@@ -1,32 +1,37 @@
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import type { ActiveColorSlot } from '../types'
 
-interface ColorState {
-  fg: string
-  bg: string
-  activeSlot: ActiveColorSlot
-}
+export const useColorStore = defineStore('color', () => {
+  const fg = ref('#000000ff')
+  const bg = ref('#ffffffff')
+  const activeSlot = ref<ActiveColorSlot>('fg')
 
-export const useColorStore = defineStore('color', {
-  state: (): ColorState => ({
-    fg: '#000000ff',
-    bg: '#ffffffff',
-    activeSlot: 'fg',
-  }),
-  actions: {
-    setFg(color: string) {
-      this.fg = color
-    },
-    setBg(color: string) {
-      this.bg = color
-    },
-    swap() {
-      const nextFg = this.bg
-      this.bg = this.fg
-      this.fg = nextFg
-    },
-    setActiveSlot(slot: ActiveColorSlot) {
-      this.activeSlot = slot
-    },
-  },
+  function setFg(color: string) {
+    fg.value = color
+  }
+
+  function setBg(color: string) {
+    bg.value = color
+  }
+
+  function swap() {
+    const nextFg = bg.value
+    bg.value = fg.value
+    fg.value = nextFg
+  }
+
+  function setActiveSlot(slot: ActiveColorSlot) {
+    activeSlot.value = slot
+  }
+
+  return {
+    fg,
+    bg,
+    activeSlot,
+    setFg,
+    setBg,
+    swap,
+    setActiveSlot,
+  }
 })

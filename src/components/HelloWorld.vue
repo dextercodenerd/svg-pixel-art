@@ -102,8 +102,8 @@ const showPersistenceNotice = computed(
                     Palette saving unavailable
                   </p>
                   <p class="leading-6">
-                    We save your palette on this device so it is still here next time. Your
-                    browser is currently blocking that, so colors will reset after this session.
+                    We save your palette on this device so it is still here next time. Your browser
+                    is currently blocking that, so colors will reset after this session.
                   </p>
                   <p class="leading-6 text-amber-900/80">
                     You can still edit colors normally right now; only saving them for later is
