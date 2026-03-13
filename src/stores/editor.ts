@@ -47,6 +47,7 @@ export const useEditorStore = defineStore('editor', {
     },
     loadDocument(document: EditorDocument) {
       this.assertCanvasSize(document.width, document.height)
+      this.assertPixelBuffer(document)
 
       const nextDocument = cloneDocument(document)
       this.document = nextDocument
@@ -112,6 +113,11 @@ export const useEditorStore = defineStore('editor', {
     assertCanvasSize(width: number, height: number) {
       if (width < 1 || height < 1 || width > MAX_CANVAS_SIZE || height > MAX_CANVAS_SIZE) {
         throw new Error(`Document dimensions must be between 1 and ${MAX_CANVAS_SIZE}.`)
+      }
+    },
+    assertPixelBuffer(document: EditorDocument) {
+      if (document.pixels.length !== document.width * document.height) {
+        throw new Error('Pixel array length must match document dimensions.')
       }
     },
   },

@@ -14,10 +14,14 @@ const paletteStore = usePaletteStore()
 const { document, activeTool, brushSize, zoom, gridVisible } = storeToRefs(editorStore)
 const { fg, bg, activeSlot } = storeToRefs(colorStore)
 const { canUndo, canRedo } = storeToRefs(historyStore)
-const { swatches } = storeToRefs(paletteStore)
+const { swatches, persistenceStatus, persistenceNoticeDismissed } = storeToRefs(paletteStore)
 
 const documentSummary = computed(
   () => `${document.value.width}x${document.value.height} • ${document.value.pixels.length} pixels`,
+)
+
+const showPersistenceNotice = computed(
+  () => persistenceStatus.value === 'unavailable' && !persistenceNoticeDismissed.value,
 )
 </script>
 
@@ -86,6 +90,34 @@ const documentSummary = computed(
                 :style="{ background: swatch }"
                 :title="swatch"
               />
+            </div>
+
+            <div
+              v-if="showPersistenceNotice"
+              class="mt-4 rounded-2xl border border-amber-900/20 bg-amber-50/80 p-4 text-sm text-amber-950"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="space-y-2">
+                  <p class="text-xs uppercase tracking-[0.22em] text-amber-800">
+                    Palette saving unavailable
+                  </p>
+                  <p class="leading-6">
+                    We save your palette on this device so it is still here next time. Your
+                    browser is currently blocking that, so colors will reset after this session.
+                  </p>
+                  <p class="leading-6 text-amber-900/80">
+                    You can still edit colors normally right now; only saving them for later is
+                    affected.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="rounded-full border border-amber-900/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-900 transition hover:bg-amber-100"
+                  @click="paletteStore.markPersistenceNoticeDismissed()"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           </div>
 

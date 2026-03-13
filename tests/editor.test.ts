@@ -59,7 +59,7 @@ describe('editor store', () => {
     expect(editorStore.document.pixels).toEqual(Array(4).fill(EMPTY_PIXEL))
   })
 
-  it('throws when newDocument receives dimensions outside 1–256', () => {
+  it('throws when newDocument receives dimensions outside 1-256', () => {
     const editorStore = useEditorStore()
 
     expect(() => editorStore.newDocument({ width: 0, height: 16 })).toThrow()
@@ -86,6 +86,38 @@ describe('editor store', () => {
     expect(editorStore.gridVisible).toBe(true)
     expect(editorStore.panOffset).toEqual({ x: 0, y: 0 })
     expect(historyStore.snapshots).toHaveLength(1)
+  })
+
+  it('loadDocument throws when pixel data is shorter than the declared dimensions', () => {
+    const editorStore = useEditorStore()
+    const historyStore = useHistoryStore()
+    const originalDocument = createEditorDocument({ width: 3, height: 3, name: 'original' })
+
+    editorStore.loadDocument(originalDocument)
+    const malformed = createEditorDocument({ width: 4, height: 4, name: 'broken-short' })
+    malformed.pixels = malformed.pixels.slice(0, 15)
+
+    expect(() => editorStore.loadDocument(malformed)).toThrow(
+      'Pixel array length must match document dimensions.',
+    )
+    expect(editorStore.document.metadata.name).toBe('original')
+    expect(historyStore.currentSnapshot?.metadata.name).toBe('original')
+  })
+
+  it('loadDocument throws when pixel data is longer than the declared dimensions', () => {
+    const editorStore = useEditorStore()
+    const historyStore = useHistoryStore()
+    const originalDocument = createEditorDocument({ width: 3, height: 3, name: 'original' })
+
+    editorStore.loadDocument(originalDocument)
+    const malformed = createEditorDocument({ width: 4, height: 4, name: 'broken-long' })
+    malformed.pixels.push(EMPTY_PIXEL)
+
+    expect(() => editorStore.loadDocument(malformed)).toThrow(
+      'Pixel array length must match document dimensions.',
+    )
+    expect(editorStore.document.metadata.name).toBe('original')
+    expect(historyStore.currentSnapshot?.metadata.name).toBe('original')
   })
 
   it('setPixels throws when array length does not match document dimensions', () => {
