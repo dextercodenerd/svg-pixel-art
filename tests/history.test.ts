@@ -41,6 +41,54 @@ describe('history store', () => {
     expect(historyStore.canRedo).toBe(false)
   })
 
+  it('undo returns null and does not move index when already at the start', () => {
+    const historyStore = useHistoryStore()
+    historyStore.resetWith(createEditorDocument({ name: 'only' }))
+
+    expect(historyStore.canUndo).toBe(false)
+    expect(historyStore.undo()).toBeNull()
+    expect(historyStore.index).toBe(0)
+  })
+
+  it('redo returns null and does not move index when already at the end', () => {
+    const historyStore = useHistoryStore()
+    historyStore.resetWith(createEditorDocument({ name: 'only' }))
+
+    expect(historyStore.canRedo).toBe(false)
+    expect(historyStore.redo()).toBeNull()
+    expect(historyStore.index).toBe(0)
+  })
+
+  it('undo and redo return independent clones, not stored references', () => {
+    const historyStore = useHistoryStore()
+    historyStore.resetWith(createEditorDocument({ name: 'base' }))
+    historyStore.push(createEditorDocument({ name: 'next' }))
+
+    const undone = historyStore.undo()!
+    undone.metadata.name = 'mutated-via-undo'
+
+    expect(historyStore.currentSnapshot?.metadata.name).toBe('base')
+
+    const redone = historyStore.redo()!
+    redone.metadata.name = 'mutated-via-redo'
+
+    expect(historyStore.currentSnapshot?.metadata.name).toBe('next')
+  })
+
+  it('clear empties the snapshot list and sets index to -1', () => {
+    const historyStore = useHistoryStore()
+    historyStore.resetWith(createEditorDocument())
+    historyStore.push(createEditorDocument())
+
+    historyStore.clear()
+
+    expect(historyStore.snapshots).toHaveLength(0)
+    expect(historyStore.index).toBe(-1)
+    expect(historyStore.canUndo).toBe(false)
+    expect(historyStore.canRedo).toBe(false)
+    expect(historyStore.currentSnapshot).toBeNull()
+  })
+
   it('caps stored snapshots at the configured history limit', () => {
     const historyStore = useHistoryStore()
     historyStore.resetWith(createEditorDocument({ name: 'seed' }))

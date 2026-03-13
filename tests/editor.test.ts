@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useEditorStore } from '../src/stores/editor'
 import { useHistoryStore } from '../src/stores/history'
-import { EMPTY_PIXEL } from '../src/types'
+import { EMPTY_PIXEL, createEditorDocument } from '../src/types'
 
 describe('editor store', () => {
   beforeEach(() => {
@@ -57,5 +57,56 @@ describe('editor store', () => {
     editorStore.newDocument({ width: 2, height: 2, fill: '#00000000' })
 
     expect(editorStore.document.pixels).toEqual(Array(4).fill(EMPTY_PIXEL))
+  })
+
+  it('throws when newDocument receives dimensions outside 1–256', () => {
+    const editorStore = useEditorStore()
+
+    expect(() => editorStore.newDocument({ width: 0, height: 16 })).toThrow()
+    expect(() => editorStore.newDocument({ width: 16, height: 0 })).toThrow()
+    expect(() => editorStore.newDocument({ width: 257, height: 16 })).toThrow()
+    expect(() => editorStore.newDocument({ width: 16, height: 257 })).toThrow()
+  })
+
+  it('loadDocument resets view state and history, does not share references with caller', () => {
+    const editorStore = useEditorStore()
+    const historyStore = useHistoryStore()
+
+    editorStore.setZoom(8)
+    editorStore.setGridVisible(false)
+    editorStore.setPan({ x: 50, y: 50 })
+
+    const external = createEditorDocument({ width: 5, height: 5, name: 'loaded' })
+    editorStore.loadDocument(external)
+
+    external.metadata.name = 'mutated-externally'
+
+    expect(editorStore.document.metadata.name).toBe('loaded')
+    expect(editorStore.zoom).toBe(1)
+    expect(editorStore.gridVisible).toBe(true)
+    expect(editorStore.panOffset).toEqual({ x: 0, y: 0 })
+    expect(historyStore.snapshots).toHaveLength(1)
+  })
+
+  it('setPixels throws when array length does not match document dimensions', () => {
+    const editorStore = useEditorStore()
+
+    editorStore.newDocument({ width: 4, height: 4 })
+
+    expect(() => editorStore.setPixels(Array(15).fill(EMPTY_PIXEL))).toThrow()
+    expect(() => editorStore.setPixels(Array(17).fill(EMPTY_PIXEL))).toThrow()
+  })
+
+  it('renameDocument updates the document name, updatedAt, and pushes history', () => {
+    const editorStore = useEditorStore()
+    const historyStore = useHistoryStore()
+
+    vi.setSystemTime(new Date('2026-03-13T17:00:00.000Z'))
+    editorStore.renameDocument('my-artwork')
+
+    expect(editorStore.document.metadata.name).toBe('my-artwork')
+    expect(editorStore.document.metadata.updatedAt).toBe('2026-03-13T17:00:00.000Z')
+    expect(historyStore.snapshots).toHaveLength(2)
+    expect(historyStore.currentSnapshot?.metadata.name).toBe('my-artwork')
   })
 })

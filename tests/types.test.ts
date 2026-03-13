@@ -3,6 +3,7 @@ import {
   DEFAULT_DOCUMENT_NAME,
   EMPTY_PIXEL,
   TRANSPARENT,
+  cloneDocument,
   createEditorDocument,
   isTransparentPixel,
   normalizeTransparentPixel,
@@ -27,6 +28,12 @@ describe('pixel transparency helpers', () => {
   })
 })
 
+describe('isTransparentPixel', () => {
+  it('treats uppercase #00000000 as transparent', () => {
+    expect(isTransparentPixel('#00000000'.toUpperCase())).toBe(true)
+  })
+})
+
 describe('createEditorDocument', () => {
   it('creates a dense row-major document with normalized fill and metadata', () => {
     const document = createEditorDocument({
@@ -46,5 +53,28 @@ describe('createEditorDocument', () => {
       createdAt: '2026-03-13T15:00:00.000Z',
       updatedAt: '2026-03-13T15:00:00.000Z',
     })
+  })
+
+  it('uses 16×16 transparent defaults when called with no options', () => {
+    const document = createEditorDocument()
+
+    expect(document.width).toBe(16)
+    expect(document.height).toBe(16)
+    expect(document.pixels).toHaveLength(256)
+    expect(document.pixels.every(pixel => pixel === EMPTY_PIXEL)).toBe(true)
+    expect(document.metadata.name).toBe(DEFAULT_DOCUMENT_NAME)
+  })
+})
+
+describe('cloneDocument', () => {
+  it('produces an independent copy — mutations do not bleed across', () => {
+    const original = createEditorDocument({ width: 2, height: 2 })
+    const clone = cloneDocument(original)
+
+    clone.pixels[0] = '#ff0000ff'
+    clone.metadata.name = 'mutated'
+
+    expect(original.pixels[0]).toBe(EMPTY_PIXEL)
+    expect(original.metadata.name).toBe(DEFAULT_DOCUMENT_NAME)
   })
 })
