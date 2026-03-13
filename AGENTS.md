@@ -25,3 +25,13 @@ Current history uses short, imperative, sentence-case subjects such as `Refined 
 
 ## Configuration Notes
 The repository uses Yarn Plug'n'Play, so prefer `yarn` over `npm`. Do not commit generated output from `dist/` or local editor artifacts.
+
+## Pixel / Image Data Performance
+
+Pixel arrays can be 256×256 = 65 536 elements. All operations on pixel data must be performance-conscious:
+
+- **One copy per operation.** When building a new pixels array (`.map`, `Array.from`, slice), do not pass the result through another copy operation in the same call chain. The wasted allocation is free in microbenchmarks but accumulates during real-time strokes.
+- **`cloneDocument` is for isolation boundaries only.** Use it when receiving a document from external code (file import, test fixture, external API) that may retain a reference. Do not call it on a document you just constructed.
+- **`push` vs `pushOwned` in history.** Use `push` (which clones) when the pixels array in the document may be aliased elsewhere. Use `pushOwned` only when the document object was constructed in the current function scope and no other reference exists.
+- **No per-pixel history pushes.** `setPixels` is for batch/discrete operations (fill, import, programmatic). Real-time drawing composables must accumulate changes in a draft buffer and commit a single history entry on stroke end (`pointerup`). Never call `setPixels` from a `pointermove` handler.
+- **Draft buffer reactivity.** Do not expose a mutable draft pixel buffer as a deeply reactive `ref`. Use a plain `string[]` for the draft, updated imperatively; replace `document.value.pixels` atomically on commit so Vue's reactivity triggers once per stroke, not once per pixel.

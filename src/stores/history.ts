@@ -29,6 +29,21 @@ export const useHistoryStore = defineStore('history', () => {
     index.value = snapshots.value.length - 1
   }
 
+  // Stores document as-is — caller must guarantee the document is an
+  // isolated, freshly created object not referenced by any other code.
+  function pushOwned(document: EditorDocument) {
+    const nextSnapshots = snapshots.value.slice(0, index.value + 1).concat(document)
+
+    if (nextSnapshots.length > MAX_HISTORY_SNAPSHOTS) {
+      snapshots.value = nextSnapshots.slice(nextSnapshots.length - MAX_HISTORY_SNAPSHOTS)
+      index.value = snapshots.value.length - 1
+      return
+    }
+
+    snapshots.value = nextSnapshots
+    index.value = snapshots.value.length - 1
+  }
+
   function undo() {
     if (!canUndo.value) {
       return null
@@ -60,6 +75,7 @@ export const useHistoryStore = defineStore('history', () => {
     currentSnapshot,
     resetWith,
     push,
+    pushOwned,
     undo,
     redo,
     clear,

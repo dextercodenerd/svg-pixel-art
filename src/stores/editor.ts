@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { useHistoryStore } from './history'
 import type { BrushSize, EditorDocument, PanOffset, ToolId, ZoomLevel } from '../types'
 import {
-  cloneDocument,
   createEditorDocument,
   createIsoTimestamp,
   EMPTY_PIXEL,
@@ -77,7 +76,7 @@ export const useEditorStore = defineStore('editor', () => {
         updatedAt: createIsoTimestamp(),
       },
     }
-    useHistoryStore().push(document.value)
+    useHistoryStore().pushOwned(document.value)
   }
 
   function setTool(tool: ToolId) {
@@ -120,8 +119,9 @@ export const useEditorStore = defineStore('editor', () => {
 
   function normalizeDocumentPixels(nextDocument: EditorDocument): EditorDocument {
     return {
-      ...cloneDocument(nextDocument),
+      ...nextDocument,
       pixels: nextDocument.pixels.map(normalizeTransparentPixel),
+      metadata: { ...nextDocument.metadata },
     }
   }
 
