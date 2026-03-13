@@ -1,46 +1,80 @@
 # Phase 2 — Canvas Rendering
 
-**Goal:** Pixel canvas visible with checkerboard, discrete zoom, pan, grid overlay, hover preview. No drawing yet.
+**Goal:** Pixel canvas is visible with checkerboard, logical zoom, clamped pan, always-on grid, custom cursor, and touch viewport gestures. No drawing commits yet.
 
 ## Coordinate Mapping
 
 ```
+renderScale = BASE_PIXEL_SIZE * zoom
+
 relX = e.clientX - viewportRect.left
 relY = e.clientY - viewportRect.top
-col = Math.floor((relX - panOffset.x) / zoom)
-row = Math.floor((relY - panOffset.y) / zoom)
+col = Math.floor((relX - panOffset.x) / renderScale)
+row = Math.floor((relY - panOffset.y) / renderScale)
 ```
 
 ## Zoom-to-Cursor Pan Adjustment
 
 ```
-oldCol = (cursorX - panOffset.x) / oldZoom
-newPanX = cursorX - oldCol * newZoom   // keep pixel under cursor stable
+oldCol = (cursorX - panOffset.x) / oldRenderScale
+oldRow = (cursorY - panOffset.y) / oldRenderScale
+
+newPanX = cursorX - oldCol * newRenderScale
+newPanY = cursorY - oldRow * newRenderScale
 ```
 
 ## Checklist
 
-- [ ] 1. Create `src/services/colorUtils.ts` — pure functions: `parseHex`, `formatHex`, `hexToRgb` (RGB portion only), `hexToAlpha` (0–1), `rgbToHsv`, `hsvToRgb`.
-- [ ] 2. Create `src/composables/useZoom.ts` — wraps `editorStore.zoom`; exposes `zoomIn()`, `zoomOut()`, `resetZoom()` cycling through `ZOOM_LEVELS`.
-- [ ] 3. Create `src/composables/usePan.ts` — tracks `isPanning`; handles `pointerdown` (middle button OR Space+primary), `pointermove` delta → `editorStore.setPan`, `pointerup`, `keydown/keyup` for Space. Exposes event handlers to attach to the viewport.
-- [ ] 4. Create `src/components/editor/PixelCanvas.vue` (`<canvas>` element):
-   - **Checkerboard:** draw once into an `OffscreenCanvas(16,16)` (8px light/dark grey squares), call `ctx.createPattern(…, 'repeat')`, cache it. Fill entire canvas with pattern before each pixel pass.
-   - **Pixel loop:** `for i in pixels: if pixel !== TRANSPARENT: fillRect(col*zoom, row*zoom, zoom, zoom)`.
-   - **Grid overlay:** draw when `gridVisible && zoom >= 4`; single `beginPath()` loop over all boundary lines; 1px semi-transparent stroke.
-   - **Hover preview:** highlight pixel under cursor with 50% opacity overlay.
-   - **Preview layer:** accept optional `previewPixels: string[] | null` prop; render with `globalAlpha = 0.65` on top.
-   - Canvas size: `width * zoom` × `height * zoom`. Recalculate on zoom or document size change.
-   - Rendering trigger: `watchEffect` → `requestAnimationFrame` gated (coalesce rapid updates).
-- [ ] 5. Create `src/components/editor/CanvasViewport.vue` — `overflow: hidden; position: relative` container. CSS-transforms inner `<div>` by `translate(panOffset.x, panOffset.y)`. Handles `wheel` for zoom-to-cursor (anchor math above). Attaches `usePan` event handlers.
-- [ ] 6. Create `src/components/editor/EditorShell.vue` — CSS Grid three-column layout: left `240px` (actions/history stubs), center `1fr` (CanvasViewport), right `240px` (tool/color stubs). Responsive: `< 768px` → side panels stack below canvas.
-- [ ] 7. Update `App.vue` to mount `EditorShell` inside a `100svh` flex container; initialize with a default `32×32` blank document.
-- [ ] 8. Create `src/components/editor/StatusBar.vue` — shows cursor (col, row), document size, zoom level, active tool.
+- [ ] 1. Create `src/services/colorUtils.ts`:
+  - `parseHex`
+  - `formatHex`
+  - `hexToRgb`
+  - `hexToAlpha`
+  - `rgbToHsv`
+  - `hsvToRgb`
+- [ ] 2. Create `src/composables/useZoom.ts`:
+  - Wrap `editorStore.zoom`.
+  - Expose `zoomIn()`, `zoomOut()`, `resetZoom()`, `zoomToLevel(level)`.
+  - Treat zoom as logical scale; effective pixel size is `BASE_PIXEL_SIZE * zoom`.
+- [ ] 3. Create `src/composables/usePan.ts`:
+  - Track `isPanning`.
+  - Handle desktop pan via middle button or `Space + primary`.
+  - Clamp movement so the canvas cannot leave the viewport entirely; allow a `32px` margin.
+  - Expose helpers for centering-if-fit and for top-left reset at `(0, 0)` when the document does not fit.
+- [ ] 4. Create `src/composables/useTouchViewport.ts`:
+  - Handle two-finger pan + pinch preview.
+  - Allow translation and scale preview during the gesture.
+  - Snap to the nearest discrete logical zoom step only on gesture end.
+  - Recompute clamped pan after snapping.
+- [ ] 5. Create `src/components/editor/PixelCanvas.vue` (`<canvas>` element):
+  - **Checkerboard:** draw once into a pattern canvas and cache `ctx.createPattern(..., 'repeat')`.
+  - **Pixel loop:** iterate row-major pixels; skip transparent values via `isTransparentPixel`.
+  - **Grid overlay:** render at all zoom levels when `gridVisible` is true.
+  - **Hover/custom cursor:** show the tool target for all tools; hide the native cursor over the canvas.
+  - **Cursor marker:** render both the outlined target area and an internal hotspot marker.
+  - **Preview layer:** accept optional `previewPixels: string[] | null` prop; render with `globalAlpha = 0.65`.
+  - Canvas size: `width * renderScale` by `height * renderScale`.
+  - Rendering trigger: `watchEffect` gated through `requestAnimationFrame`.
+- [ ] 6. Create `src/components/editor/CanvasViewport.vue`:
+  - `overflow: hidden; position: relative` container.
+  - Inner wrapper uses CSS `translate(...)` from `panOffset`.
+  - Handles wheel-based zoom-to-cursor.
+  - Attaches `usePan` and `useTouchViewport`.
+  - On viewport/document changes, center the canvas if it fits at current zoom; otherwise keep top-left at `(0, 0)` on resets.
+- [ ] 7. Create `src/components/editor/EditorShell.vue`:
+  - CSS Grid three-column layout: left `240px`, center `1fr`, right `240px`.
+  - Responsive: `< 768px` side panels stack below canvas.
+  - For now, use stubs for document/actions and tool/color panels.
+- [ ] 8. Update `App.vue` to mount `EditorShell` inside a `100svh` flex container and initialize a transparent `32x32` blank document when no draft exists.
+- [ ] 9. Create `src/components/editor/StatusBar.vue`:
+  - Shows cursor `(col, row)`, document size, logical zoom level, effective pixel size, and active tool.
 
 ## Verify
 
-- 32×32 blank canvas shows checkerboard.
-- `+`/`-` cycle zoom; canvas resizes.
-- Middle-mouse and Space+drag pan.
-- `G` toggles grid lines at zoom ≥ 4.
-- Hover highlights pixel.
-- StatusBar updates.
+- Transparent `32x32` canvas shows checkerboard and grid at startup.
+- Logical `+` and `-` zoom changes the effective pixel size from `8px` upward.
+- Middle-mouse and `Space + drag` pan with clamp margin.
+- Two-finger touch pans and previews pinch zoom, then snaps on gesture end.
+- `G` toggles grid.
+- Custom cursor replaces the native pointer and shows outline plus hotspot marker.
+- Status bar updates correctly.

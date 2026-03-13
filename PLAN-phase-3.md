@@ -1,24 +1,59 @@
 # Phase 3 — Drawing Tools
 
-**Goal:** All five tools functional with FG/BG model, brush sizes, Bresenham line preview, and undo/redo.
+**Goal:** All five tools work on desktop and touch with FG/BG behavior, brush sizes, Bresenham line preview, and single-commit history entries.
 
 ## Checklist
 
-- [ ] 1. Create `src/services/pixelOps.ts` — pure functions operating on a pixels array copy (never mutate in-place):
-   - `brushStamp(pixels, width, height, col, row, brushSize, color): string[]` — stamp `brushSize×brushSize` square centred on (col, row), clamped to bounds.
-   - `bresenhamLine(col0, row0, col1, row1): {col, row}[]` — classic integer Bresenham, returns pixel coordinate list.
-   - `floodFill(pixels, width, height, col, row, targetColor, fillColor): string[]` — BFS with `Uint8Array(width*height)` visited flags (not a Set — better GC), 4-connected, exact match. Guard: return clone unchanged if `targetColor === fillColor`.
+- [ ] 1. Create `src/services/pixelOps.ts` — pure functions operating on a copied pixels array:
+  - `brushStamp(pixels, width, height, col, row, brushSize, color): string[]`
+    - Stamp a square brush.
+    - Even brush sizes are top-left biased.
+    - Clamp to bounds.
+  - `bresenhamLine(col0, row0, col1, row1): { col: number; row: number }[]`
+  - `floodFill(pixels, width, height, col, row, targetColor, fillColor): string[]`
+    - BFS with `Uint8Array(width * height)` visited flags.
+    - 4-connected exact match.
+    - Treat `''` and `#00000000` as equivalent.
+    - Return clone unchanged if target and fill colors are equivalent.
 - [ ] 2. Create `src/composables/useCanvasPointer.ts`:
-   - Registers `pointerdown`, `pointermove`, `pointerup`, `contextmenu` (preventDefault) on canvas ref.
-   - Determines draw color: `button === 0` → FG, `button === 2` → BG; eraser always `TRANSPARENT`.
-   - **Pencil/Eraser:** on `pointerdown` + `pointermove`, interpolate between last coord and current via `bresenhamLine` to fill gaps during fast strokes; call `editorStore.setPixels(brushStamp(…))` per point. Push history on `pointerup` (one undo per stroke).
-   - **Line:** record `lineStart` on `pointerdown`; on `pointermove` update `previewPixels` ref (Bresenham list → stamped onto current pixels); on `pointerup` commit via `setPixels` + push history; clear `previewPixels`.
-   - **Fill:** on `pointerdown`, run `floodFill`, call `setPixels`, push history.
-   - **Eyedropper:** on `pointerdown`, read pixel, call `colorStore.setFg` or `colorStore.setBg` per button.
-- [ ] 3. Update `src/stores/editor.ts` — add `applyUndo()` (pull snapshot from historyStore, call `setPixels`) and `applyRedo()`.
-- [ ] 4. Update `PixelCanvas.vue` to attach `useCanvasPointer` handlers; pass `previewPixels` to render loop.
-- [ ] 5. Create `src/components/editor/ToolBar.vue` — icon buttons for each tool; active tool highlighted; Reka UI Tooltips with shortcut labels; cursor changes per tool (`crosshair` default, `copy` for eyedropper).
-- [ ] 6. Create `src/components/editor/BrushSizePicker.vue` — four small SVG squares showing 1–4px dot; clicking selects; `[`/`]` keyboard cycle.
+  - Register `pointerdown`, `pointermove`, `pointerup`, `pointercancel`, and `contextmenu`.
+  - Prevent default context menu on canvas.
+  - Determine draw color:
+    - Desktop primary button uses `FG`.
+    - Desktop secondary button uses `BG`.
+    - Eraser always uses transparency.
+    - Touch uses `colorStore.activeSlot`.
+  - **Pencil/Eraser:**
+    - On `pointerdown` and `pointermove`, interpolate via `bresenhamLine` to avoid skipped gaps.
+    - Stamp each intermediate point with the selected brush size.
+    - Push one history entry on commit, not per move.
+  - **Line:**
+    - Record `lineStart` on pointer down.
+    - Update `previewPixels` during drag.
+    - Commit once on release.
+    - Desktop right-click uses `BG`.
+    - Touch uses the active slot.
+  - **Fill:**
+    - Run on press.
+    - Desktop right-click uses `BG`.
+    - Touch uses the active slot.
+    - Push one history entry.
+  - **Eyedropper:**
+    - Desktop primary sets `FG`, secondary sets `BG`.
+    - Touch sets the active slot.
+  - Feed cursor target state back to `PixelCanvas`.
+- [ ] 3. Update `src/stores/editor.ts`:
+  - Add `applyUndo()` and `applyRedo()` that load full document snapshots from `historyStore`.
+  - Keep `version`, `width`, `height`, `pixels`, and `metadata` in sync on restore.
+- [ ] 4. Update `PixelCanvas.vue` to attach `useCanvasPointer` handlers and render `previewPixels`.
+- [ ] 5. Create `src/components/editor/ToolBar.vue`:
+  - Icon buttons for all five tools.
+  - Active tool highlighted.
+  - Reka UI Tooltips show shortcuts.
+- [ ] 6. Create `src/components/editor/BrushSizePicker.vue`:
+  - Four SVG size previews.
+  - Clicking selects brush size.
+  - `[` and `]` cycle sizes.
 
 ## Keyboard Shortcuts (tools)
 
@@ -30,17 +65,18 @@
 | `F` | Fill |
 | `I` | Eyedropper |
 | `X` | Swap FG/BG |
-| `[` / `]` | Decrease / Increase brush size |
-| `Ctrl+Z` | Undo |
-| `Ctrl+Shift+Z` | Redo |
+| `[` / `]` | Decrease / increase brush size |
+| `Ctrl/Cmd+Z` | Undo |
+| `Ctrl/Cmd+Shift+Z` | Redo |
 
 ## Verify
 
-- Pencil draws FG on left-click, BG on right-click.
-- Eraser produces transparent pixels (checkerboard shows through).
-- All brush sizes stamp correct square.
-- Line preview shows during drag, commits on release.
+- Pencil draws `FG` on desktop primary button and `BG` on desktop secondary button.
+- Eraser produces transparent pixels and the checkerboard shows through.
+- Touch drawing uses the active `FG/BG` slot.
+- All brush sizes stamp the correct square with top-left bias for even sizes.
+- Line preview shows during drag and commits on release.
 - Fill replaces all connected exact-match pixels.
-- Eyedropper sets FG/BG.
+- Eyedropper updates the correct slot on desktop and touch.
 - Undo reverts each stroke/fill/line as one step; redo reapplies.
-- History caps at 50.
+- History stores full document snapshots and supports `50` undo steps.
