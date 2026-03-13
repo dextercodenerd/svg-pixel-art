@@ -3,6 +3,7 @@
   "packageManager": "yarn@4.13.0",
   "private": true,
   "version": "0.0.1",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,vue,html,css}\"",
