@@ -15,6 +15,7 @@ import { useColorStore } from '../../stores/color'
 import { useEditorStore } from '../../stores/editor'
 import { useHistoryStore } from '../../stores/history'
 import { BASE_PIXEL_SIZE } from '../../types'
+import { isEditableTarget } from '../../utils/dom'
 import type { ToolId } from '../../types'
 
 const editorStore = useEditorStore()
@@ -33,19 +34,6 @@ const effectivePixelSize = computed(() => BASE_PIXEL_SIZE * zoom.value)
 const documentSummary = computed(() => `${document.value.width} x ${document.value.height}`)
 
 const tools: ToolId[] = ['pencil', 'eraser', 'line', 'fill', 'eyedropper']
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return (
-    target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
-  )
-}
 
 function onCursorChange(payload: { col: number | null; row: number | null }) {
   cursorCol.value = payload.col

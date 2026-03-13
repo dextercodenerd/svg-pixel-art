@@ -87,10 +87,7 @@ export function rgbToHsv(r: number, g: number, b: number): HsvColor {
     }
   }
 
-  hue = Math.round(hue * 60)
-  if (hue < 0) {
-    hue += 360
-  }
+  hue = ((Math.round(hue * 60) % 360) + 360) % 360
 
   const saturation = max === 0 ? 0 : delta / max
 

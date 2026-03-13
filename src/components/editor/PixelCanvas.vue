@@ -201,9 +201,7 @@ watchEffect(() => {
   void props.zoom
   void props.gridVisible
   void props.previewPixels
-  void props.cursor?.col
-  void props.cursor?.row
-  void props.cursor?.size
+  void props.cursor
 
   scheduleRender()
 })

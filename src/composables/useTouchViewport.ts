@@ -23,6 +23,7 @@ interface GestureState {
   focusArtY: number
   initialZoom: number
   initialDistance: number
+  initialPan: PanOffset
   lastCenter: TouchPoint
 }
 
@@ -85,6 +86,7 @@ export function useTouchViewport(options: UseTouchViewportOptions) {
       focusArtY: (center.y - panOffset.value.y) / currentRenderScale,
       initialZoom: zoom.value,
       initialDistance: distance,
+      initialPan: { ...panOffset.value },
       lastCenter: center,
     }
 
@@ -172,11 +174,19 @@ export function useTouchViewport(options: UseTouchViewportOptions) {
   }
 
   function cancelGesture(): boolean {
-    if (!isGestureActive.value) {
+    const state = gestureState.value
+    if (!isGestureActive.value || state == null) {
       return false
     }
 
-    return commitGesture()
+    options.zoomToLevel(state.initialZoom)
+    editorStore.setPan(options.clampPan(state.initialPan))
+
+    gestureState.value = null
+    isGestureActive.value = false
+    previewScale.value = 1
+    previewPan.value = null
+    return true
   }
 
   return {

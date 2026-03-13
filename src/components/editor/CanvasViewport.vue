@@ -13,6 +13,7 @@ import { usePan } from '../../composables/usePan'
 import { useTouchViewport } from '../../composables/useTouchViewport'
 import { useZoom } from '../../composables/useZoom'
 import { useEditorStore } from '../../stores/editor'
+import { isEditableTarget } from '../../utils/dom'
 import type { PanOffset } from '../../types'
 
 const props = withDefaults(
@@ -82,19 +83,6 @@ function getCursorSize(): number {
   }
 
   return 1
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return (
-    target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
-  )
 }
 
 function clearCursor() {
@@ -273,7 +261,6 @@ onMounted(() => {
 
   if (viewportRef.value != null) {
     resizeObserver = new ResizeObserver(() => {
-      resetForDocumentBounds()
       clampCurrentPan()
     })
     resizeObserver.observe(viewportRef.value)
