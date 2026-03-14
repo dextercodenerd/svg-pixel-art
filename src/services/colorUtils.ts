@@ -72,6 +72,20 @@ export function formatHex(color: ParsedHexColor): string {
   return `#${toHexByte(color.r)}${toHexByte(color.g)}${toHexByte(color.b)}${toHexByte(color.a)}`
 }
 
+export function normalizeHexInput(value: string): string | null {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) {
+    return null
+  }
+
+  const normalized = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed
+  if (!isValidHex(normalized, normalized.length)) {
+    return null
+  }
+
+  return `#${(normalized.length === HEX_6 ? `${normalized}ff` : normalized).toLowerCase()}`
+}
+
 export function hexToRgb(value: string): RgbColor {
   const { r, g, b } = parseHex(value)
   return { r, g, b }
@@ -79,6 +93,16 @@ export function hexToRgb(value: string): RgbColor {
 
 export function hexToAlpha(value: string): number {
   return parseHex(value).a / 255
+}
+
+export function hexToHsv(value: string): HsvColor {
+  const { r, g, b } = parseHex(value)
+  return rgbToHsv(r, g, b)
+}
+
+export function hexToCssColor(value: string): string {
+  const { r, g, b, a } = parseHex(value)
+  return `rgba(${r}, ${g}, ${b}, ${Number((a / 255).toFixed(3))})`
 }
 
 export function rgbToHsv(r: number, g: number, b: number): HsvColor {

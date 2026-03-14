@@ -7,6 +7,7 @@
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { normalizeHexInput } from '../services/colorUtils'
 import type { ActiveColorSlot } from '../types'
 
 export const useColorStore = defineStore('color', () => {
@@ -15,11 +16,21 @@ export const useColorStore = defineStore('color', () => {
   const activeSlot = ref<ActiveColorSlot>('fg')
 
   function setFg(color: string) {
-    fg.value = color
+    const normalized = normalizeHexInput(color)
+    if (normalized == null) {
+      return
+    }
+
+    fg.value = normalized
   }
 
   function setBg(color: string) {
-    bg.value = color
+    const normalized = normalizeHexInput(color)
+    if (normalized == null) {
+      return
+    }
+
+    bg.value = normalized
   }
 
   function swap() {
