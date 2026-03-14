@@ -25,10 +25,12 @@ const props = withDefaults(
     cursor: CanvasCursor | null
     document: EditorDocument
     gridVisible: boolean
+    previewMode?: 'overlay' | 'replace'
     previewPixels?: string[] | null
     zoom: ZoomLevel
   }>(),
   {
+    previewMode: 'overlay',
     previewPixels: null,
   },
 )
@@ -36,6 +38,7 @@ const props = withDefaults(
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const renderRequestId = ref<number | null>(null)
 const checkerboardPattern = ref<CanvasPattern | null>(null)
+const offscreenCanvas = ref<HTMLCanvasElement | null>(null)
 
 const renderScale = computed(() => BASE_PIXEL_SIZE * props.zoom)
 const canvasWidth = computed(() => props.document.width * renderScale.value)
@@ -88,7 +91,6 @@ function drawPixelsFast(
   pixels: string[],
   width: number,
   height: number,
-  alpha = 1,
 ) {
   // Allocate a 1:1 ImageData (one pixel per document "pixel"), then scale via drawImage.
   const imageData = context.createImageData(width, height)
@@ -105,13 +107,19 @@ function drawPixelsFast(
     data[offset] = r
     data[offset + 1] = g
     data[offset + 2] = b
-    data[offset + 3] = Math.round(a * alpha)
+    data[offset + 3] = a
   }
 
   // Write to an offscreen canvas so we can scale with drawImage (ImageData has no built-in scale).
-  const offscreen = document.createElement('canvas')
-  offscreen.width = width
-  offscreen.height = height
+  // The offscreen canvas is cached and resized on demand to avoid allocation per frame.
+  if (offscreenCanvas.value == null) {
+    offscreenCanvas.value = document.createElement('canvas')
+  }
+  const offscreen = offscreenCanvas.value
+  if (offscreen.width !== width || offscreen.height !== height) {
+    offscreen.width = width
+    offscreen.height = height
+  }
   offscreen.getContext('2d')!.putImageData(imageData, 0, 0)
 
   context.save()
@@ -147,15 +155,19 @@ function drawCursor(context: CanvasRenderingContext2D) {
     return
   }
 
-  const widthInPixels = Math.min(props.cursor.size, props.document.width - props.cursor.col)
-  const heightInPixels = Math.min(props.cursor.size, props.document.height - props.cursor.row)
+  const startCol = Math.max(0, props.cursor.col)
+  const startRow = Math.max(0, props.cursor.row)
+  const endCol = Math.min(props.document.width, props.cursor.col + props.cursor.size)
+  const endRow = Math.min(props.document.height, props.cursor.row + props.cursor.size)
+  const widthInPixels = endCol - startCol
+  const heightInPixels = endRow - startRow
 
   if (widthInPixels <= 0 || heightInPixels <= 0) {
     return
   }
 
-  const x = props.cursor.col * renderScale.value
-  const y = props.cursor.row * renderScale.value
+  const x = startCol * renderScale.value
+  const y = startRow * renderScale.value
   const width = widthInPixels * renderScale.value
   const height = heightInPixels * renderScale.value
 
@@ -191,16 +203,20 @@ function drawCanvas() {
     context.fillRect(0, 0, canvasWidth.value, canvasHeight.value)
   }
 
-  drawPixelsFast(context, props.document.pixels, props.document.width, props.document.height)
+  const shouldReplacePixels =
+    props.previewMode === 'replace' &&
+    props.previewPixels != null &&
+    props.previewPixels.length === props.document.pixels.length
+  const basePixels = shouldReplacePixels ? props.previewPixels : props.document.pixels
 
-  if (props.previewPixels != null && props.previewPixels.length === props.document.pixels.length) {
-    drawPixelsFast(
-      context,
-      props.previewPixels,
-      props.document.width,
-      props.document.height,
-      0.65,
-    )
+  drawPixelsFast(context, basePixels, props.document.width, props.document.height)
+
+  if (
+    props.previewMode === 'overlay' &&
+    props.previewPixels != null &&
+    props.previewPixels.length === props.document.pixels.length
+  ) {
+    drawPixelsFast(context, props.previewPixels, props.document.width, props.document.height)
   }
 
   // Only draw the grid when "pixels" are large enough that grid lines are visible
@@ -228,6 +244,7 @@ watch(
       props.zoom,
       props.gridVisible,
       props.previewPixels,
+      props.previewMode,
       props.cursor,
     ] as const,
   () => {

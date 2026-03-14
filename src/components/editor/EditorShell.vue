@@ -8,21 +8,22 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import BrushSizePicker from './BrushSizePicker.vue'
 import CanvasViewport from './CanvasViewport.vue'
 import StatusBar from './StatusBar.vue'
+import ToolBar from './ToolBar.vue'
 import { useZoom } from '../../composables/useZoom'
 import { useColorStore } from '../../stores/color'
 import { useEditorStore } from '../../stores/editor'
 import { useHistoryStore } from '../../stores/history'
 import { BASE_PIXEL_SIZE } from '../../types'
 import { isEditableTarget } from '../../utils/dom'
-import type { ToolId } from '../../types'
 
 const editorStore = useEditorStore()
 const colorStore = useColorStore()
 const historyStore = useHistoryStore()
 
-const { activeTool, brushSize, document, gridVisible, zoom } = storeToRefs(editorStore)
+const { document, gridVisible, zoom } = storeToRefs(editorStore)
 const { fg, bg, activeSlot } = storeToRefs(colorStore)
 const { canRedo, canUndo } = storeToRefs(historyStore)
 const { resetZoom, zoomIn, zoomOut } = useZoom()
@@ -32,8 +33,6 @@ const cursorRow = ref<number | null>(null)
 
 const effectivePixelSize = computed(() => BASE_PIXEL_SIZE * zoom.value)
 const documentSummary = computed(() => `${document.value.width} x ${document.value.height}`)
-
-const tools: ToolId[] = ['pencil', 'eraser', 'line', 'fill', 'eyedropper']
 
 function onCursorChange(payload: { col: number | null; row: number | null }) {
   cursorCol.value = payload.col
@@ -103,8 +102,8 @@ onBeforeUnmount(() => {
       <div
         class="mt-6 rounded-[24px] border border-[var(--panel-border)] bg-[var(--panel-inner)] p-4 text-sm text-[var(--ink-soft)]"
       >
-        Phase 2 focuses on the viewport foundation, so document actions stay as placeholders here
-        until import, export, and dialogs arrive.
+        Phase 3 adds the drawing core. Import, export, and document dialogs are still staged for
+        later phases.
       </div>
     </aside>
 
@@ -117,6 +116,22 @@ onBeforeUnmount(() => {
           <h2 class="mt-2 text-xl font-semibold tracking-tight">Canvas workspace</h2>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            class="editor-button"
+            :disabled="!canUndo"
+            @click="editorStore.applyUndo()"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            class="editor-button"
+            :disabled="!canRedo"
+            @click="editorStore.applyRedo()"
+          >
+            Redo
+          </button>
           <button type="button" class="editor-button" @click="zoomOut()">-</button>
           <button type="button" class="editor-button" @click="resetZoom()">1x</button>
           <button type="button" class="editor-button" @click="zoomIn()">+</button>
@@ -137,25 +152,12 @@ onBeforeUnmount(() => {
       <p class="eyebrow">Tools</p>
       <h2 class="mt-3 text-2xl font-semibold tracking-tight">Editor state</h2>
 
-      <div class="mt-5 grid grid-cols-2 gap-2">
-        <button
-          v-for="tool in tools"
-          :key="tool"
-          type="button"
-          class="tool-button capitalize"
-          :data-active="tool === activeTool"
-          @click="editorStore.setTool(tool)"
-        >
-          {{ tool }}
-        </button>
+      <div class="mt-5">
+        <ToolBar />
       </div>
 
       <div class="mt-5 grid gap-3">
-        <div class="status-card">
-          <span class="status-label">Brush</span>
-          <strong class="status-value">{{ brushSize }} x {{ brushSize }}</strong>
-          <span class="status-detail">Cursor size follows the active paint tool.</span>
-        </div>
+        <BrushSizePicker />
         <div class="status-card">
           <span class="status-label">Active colors</span>
           <strong class="status-value">{{ activeSlot.toUpperCase() }}</strong>

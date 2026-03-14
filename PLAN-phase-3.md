@@ -1,10 +1,10 @@
 # Phase 3 — Drawing Tools
 
-**Goal:** All five tools work on desktop and touch with FG/BG behavior, brush sizes, Bresenham line preview, and single-commit history entries.
+**Goal:** All five tools work on desktop and touch with FG/BG behavior, brush sizes, a live Bresenham line preview overlay, and single-commit history entries.
 
 ## Checklist
 
-- [ ] 1. Create `src/services/pixelOps.ts` — pure functions operating on a copied pixels array:
+- [x] 1. Create `src/services/pixelOps.ts` — pure functions operating on a copied pixels array:
   - `brushStamp(pixels, width, height, col, row, brushSize, color): string[]`
     - Stamp a square brush.
     - Even brush sizes are top-left biased.
@@ -15,7 +15,7 @@
     - 4-connected exact match.
     - Treat `''` and `#00000000` as equivalent.
     - Return clone unchanged if target and fill colors are equivalent.
-- [ ] 2. Create `src/composables/useCanvasPointer.ts`:
+- [x] 2. Create `src/composables/useCanvasPointer.ts`:
   - Register `pointerdown`, `pointermove`, `pointerup`, `pointercancel`, and `contextmenu`.
   - Prevent default context menu on canvas.
   - Determine draw color:
@@ -29,7 +29,8 @@
     - Push one history entry on commit, not per move.
   - **Line:**
     - Record `lineStart` on pointer down.
-    - Update `previewPixels` during drag.
+    - Update `previewPixels` during drag with the pending line only.
+    - Render the live preview over the current drawing in a configurable preview color that includes alpha; start with black at `0.65` alpha.
     - Commit once on release.
     - Desktop right-click uses `BG`.
     - Touch uses the active slot.
@@ -42,15 +43,15 @@
     - Desktop primary sets `FG`, secondary sets `BG`.
     - Touch sets the active slot.
   - Feed cursor target state back to `PixelCanvas`.
-- [ ] 3. Update `src/stores/editor.ts`:
+- [x] 3. Update `src/stores/editor.ts`:
   - Add `applyUndo()` and `applyRedo()` that load full document snapshots from `historyStore`.
   - Keep `version`, `width`, `height`, `pixels`, and `metadata` in sync on restore.
-- [ ] 4. Update `PixelCanvas.vue` to attach `useCanvasPointer` handlers and render `previewPixels`.
-- [ ] 5. Create `src/components/editor/ToolBar.vue`:
+- [x] 4. Update `PixelCanvas.vue` to attach `useCanvasPointer` handlers and render `previewPixels` as a line-only overlay without dimming unrelated artwork.
+- [x] 5. Create `src/components/editor/ToolBar.vue`:
   - Icon buttons for all five tools.
   - Active tool highlighted.
   - Reka UI Tooltips show shortcuts.
-- [ ] 6. Create `src/components/editor/BrushSizePicker.vue`:
+- [x] 6. Create `src/components/editor/BrushSizePicker.vue`:
   - Four SVG size previews.
   - Clicking selects brush size.
   - `[` and `]` cycle sizes.
@@ -78,7 +79,7 @@
 - Eraser produces transparent pixels and the checkerboard shows through.
 - Touch drawing uses the active `FG/BG` slot.
 - All brush sizes stamp the correct square with top-left bias for even sizes.
-- Line preview shows during drag and commits on release.
+- Line preview shows during drag as a black `0.65` alpha overlay over the current drawing and commits on release using the real selected line color.
 - Fill replaces all connected exact-match pixels.
 - Eyedropper updates the correct slot on desktop and touch.
 - Undo reverts each stroke/fill/line as one step; redo reapplies.

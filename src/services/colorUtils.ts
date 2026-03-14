@@ -7,7 +7,6 @@
  */
 import { clampByte, clampUnit } from '../utils/math'
 
-
 export interface RgbColor {
   r: number
   g: number
@@ -29,10 +28,7 @@ const HEX_6 = 6
 const HEX_8 = 8
 
 function isValidHex(s: string, normalizedLength: number): boolean {
-  return (
-    (normalizedLength === HEX_6 || normalizedLength === HEX_8) &&
-    /^[0-9a-f]+$/i.test(s)
-  )
+  return (normalizedLength === HEX_6 || normalizedLength === HEX_8) && /^[0-9a-f]+$/i.test(s)
 }
 
 function parseHexByte(s: string, offset: number): number {
@@ -42,9 +38,15 @@ function parseHexByte(s: string, offset: number): number {
 function charToNibble(s: string, i: number): number {
   const c = s.charCodeAt(i)
   // '0'-'9' = 48-57, 'a'-'f' = 97-102, 'A'-'F' = 65-70
-  if (c >= 48 && c <= 57) return c - 48
-  if (c >= 65 && c <= 70) return c - 55
-  if (c >= 97 && c <= 102) return c - 87
+  if (c >= 48 && c <= 57) {
+    return c - 48
+  }
+  if (c >= 65 && c <= 70) {
+    return c - 55
+  }
+  if (c >= 97 && c <= 102) {
+    return c - 87
+  }
   return 0
 }
 

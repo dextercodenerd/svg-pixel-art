@@ -137,14 +137,22 @@ export const useEditorStore = defineStore('editor', () => {
     panOffset.value = { x: 0, y: 0 }
   }
 
-  // Called by the undo/redo path. History already clones snapshots on read, so the
-  // document arriving here is already an isolated copy -- skip normalizing.
-  function syncWithHistory(nextDocument: EditorDocument | null) {
+  // History already clones snapshots on read, so the document arriving here is
+  // already an isolated copy.
+  function applyHistorySnapshot(nextDocument: EditorDocument | null) {
     if (nextDocument == null) {
       return
     }
 
     document.value = nextDocument
+  }
+
+  function applyUndo() {
+    applyHistorySnapshot(useHistoryStore().undo())
+  }
+
+  function applyRedo() {
+    applyHistorySnapshot(useHistoryStore().redo())
   }
 
   function normalizeDocumentPixels(nextDocument: EditorDocument): EditorDocument {
@@ -195,6 +203,7 @@ export const useEditorStore = defineStore('editor', () => {
     setGridVisible,
     setPan,
     resetViewState,
-    syncWithHistory,
+    applyUndo,
+    applyRedo,
   }
 })

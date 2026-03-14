@@ -132,7 +132,7 @@ Design decisions confirmed through planning:
 
 **Transparent equivalence:** Add a shared helper such as `isTransparentPixel(value)` so `''` and `#00000000` are treated identically by drawing, fill matching, eyedropper, export skipping, and validation.
 
-**Bresenham line preview:** Maintain `previewPixels: string[] | null` ref in `useCanvasPointer`. While dragging, compute `bresenhamLine(start, current)`, stamp onto a copy of `document.pixels`, and store in `previewPixels`. Pass as a prop to `PixelCanvas`; render with `globalAlpha = 0.65` after the normal pixel pass. On commit, clear `previewPixels` and push a single history entry.
+**Bresenham line preview:** Maintain `previewPixels: string[] | null` ref in `useCanvasPointer`. While dragging, compute the pending line, build preview data for that line only, and store it in `previewPixels`. Pass it to `PixelCanvas` and render it over the current drawing in a configurable preview color that includes alpha; start with black at `0.65` alpha. On commit, clear `previewPixels` and push a single history entry while applying the real selected line color to the document.
 
 **Coordinate mapping with pan + logical zoom:**
 ```
