@@ -38,6 +38,7 @@ const props = withDefaults(
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const renderRequestId = ref<number | null>(null)
 const checkerboardPattern = ref<CanvasPattern | null>(null)
+const offscreenCanvas = ref<HTMLCanvasElement | null>(null)
 
 const renderScale = computed(() => BASE_PIXEL_SIZE * props.zoom)
 const canvasWidth = computed(() => props.document.width * renderScale.value)
@@ -111,9 +112,15 @@ function drawPixelsFast(
   }
 
   // Write to an offscreen canvas so we can scale with drawImage (ImageData has no built-in scale).
-  const offscreen = document.createElement('canvas')
-  offscreen.width = width
-  offscreen.height = height
+  // The offscreen canvas is cached and resized on demand to avoid allocation per frame.
+  if (offscreenCanvas.value == null) {
+    offscreenCanvas.value = document.createElement('canvas')
+  }
+  const offscreen = offscreenCanvas.value
+  if (offscreen.width !== width || offscreen.height !== height) {
+    offscreen.width = width
+    offscreen.height = height
+  }
   offscreen.getContext('2d')!.putImageData(imageData, 0, 0)
 
   context.save()

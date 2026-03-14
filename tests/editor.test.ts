@@ -184,6 +184,26 @@ describe('editor store', () => {
     expect(historyStore.currentSnapshot?.metadata.name).toBe('my-artwork')
   })
 
+  it('applyUndo is a no-op when already at the start of history', () => {
+    const editorStore = useEditorStore()
+    editorStore.newDocument({ width: 2, height: 2, name: 'only' })
+
+    editorStore.applyUndo()
+
+    expect(editorStore.document.metadata.name).toBe('only')
+    expect(editorStore.document.width).toBe(2)
+  })
+
+  it('applyRedo is a no-op when already at the end of history', () => {
+    const editorStore = useEditorStore()
+    editorStore.newDocument({ width: 2, height: 2, name: 'only' })
+
+    editorStore.applyRedo()
+
+    expect(editorStore.document.metadata.name).toBe('only')
+    expect(editorStore.document.width).toBe(2)
+  })
+
   it('applyUndo and applyRedo restore full document snapshots from history', () => {
     const editorStore = useEditorStore()
 

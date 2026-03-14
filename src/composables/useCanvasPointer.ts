@@ -402,6 +402,13 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
           activeSession.color,
         ) || activeSession.hasChanges
       activeSession.lastPoint = point
+      // draftPixels is mutated in-place, so re-assigning the same reference here does
+      // not trigger Vue's ref change detection (Object.is returns true). The canvas still
+      // re-renders on every move because updateHoverState() above always writes a new
+      // object to cursor.value, which PixelCanvas watches. Vue batches both writes and
+      // flushes them together, so the canvas reads the already-mutated draftPixels array
+      // when it draws. The line tool avoids this entirely by producing a fresh array in
+      // renderLinePreview() on each move.
       previewPixels.value = activeSession.draftPixels
       previewMode.value = 'replace'
       event.preventDefault()

@@ -89,6 +89,38 @@ describe('bresenhamLine', () => {
       { col: 3, row: 6 },
     ])
   })
+
+  it('returns a single-element array when start equals end', () => {
+    expect(bresenhamLine(4, 7, 4, 7)).toEqual([{ col: 4, row: 7 }])
+  })
+
+  it('generates all points for a horizontal line', () => {
+    expect(bresenhamLine(0, 3, 4, 3)).toEqual([
+      { col: 0, row: 3 },
+      { col: 1, row: 3 },
+      { col: 2, row: 3 },
+      { col: 3, row: 3 },
+      { col: 4, row: 3 },
+    ])
+  })
+
+  it('generates all points for a vertical line', () => {
+    expect(bresenhamLine(2, 0, 2, 3)).toEqual([
+      { col: 2, row: 0 },
+      { col: 2, row: 1 },
+      { col: 2, row: 2 },
+      { col: 2, row: 3 },
+    ])
+  })
+
+  it('steps correctly when drawing in the reverse direction', () => {
+    expect(bresenhamLine(3, 3, 0, 0)).toEqual([
+      { col: 3, row: 3 },
+      { col: 2, row: 2 },
+      { col: 1, row: 1 },
+      { col: 0, row: 0 },
+    ])
+  })
 })
 
 describe('floodFill', () => {
@@ -135,5 +167,22 @@ describe('floodFill', () => {
 
     expect(filled).toEqual([EMPTY_PIXEL, '#112233ff', EMPTY_PIXEL, '#00000000'])
     expect(filled).not.toBe(pixels)
+  })
+
+  it('returns an unchanged clone when the starting point is out of bounds', () => {
+    const pixels = Array<string>(4).fill('#ff0000ff')
+    const result = floodFill(pixels, 2, 2, -1, 0, '#ff0000ff', '#00ff00ff')
+
+    expect(result).toEqual(pixels)
+    expect(result).not.toBe(pixels)
+  })
+
+  it('returns an unchanged clone when the start pixel does not match the given target color', () => {
+    // Pixel at (0,0) is '#ff0000ff' but targetColor claims it is '#00ff00ff'
+    const pixels = Array<string>(4).fill('#ff0000ff')
+    const result = floodFill(pixels, 2, 2, 0, 0, '#00ff00ff', '#0000ffff')
+
+    expect(result).toEqual(pixels)
+    expect(result).not.toBe(pixels)
   })
 })
