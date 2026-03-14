@@ -1,0 +1,472 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * Copyright (C) 2026 Dexter
+ *
+ * This source code is licensed under the GNU Affero General Public License v3.0
+ * found in the LICENSE file in the root directory of this source tree.
+ */
+import { storeToRefs } from 'pinia'
+import { ref, watch } from 'vue'
+import { bresenhamLine, floodFill, stampBrushInto } from '../services/pixelOps'
+import { useColorStore } from '../stores/color'
+import { useEditorStore } from '../stores/editor'
+import { EMPTY_PIXEL, TRANSPARENT, isTransparentPixel, normalizeTransparentPixel } from '../types'
+import type { ActiveColorSlot, PanOffset, ToolId } from '../types'
+import type { Ref } from 'vue'
+
+interface CanvasPoint {
+  col: number
+  row: number
+}
+
+interface CanvasCursor {
+  col: number
+  row: number
+  size: number
+}
+
+type PreviewMode = 'overlay' | 'replace'
+
+interface StrokeSession {
+  color: string
+  draftPixels: string[]
+  hasChanges: boolean
+  kind: 'stroke'
+  lastPoint: CanvasPoint
+  pointerId: number
+}
+
+interface LineSession {
+  basePixels: string[]
+  color: string
+  currentPoint: CanvasPoint
+  draftPixels: string[]
+  hasChanges: boolean
+  kind: 'line'
+  pointerId: number
+  startPoint: CanvasPoint
+}
+
+type ActiveSession = LineSession | StrokeSession
+
+interface UseCanvasPointerOptions {
+  displayPan: Ref<PanOffset>
+  displayScale: Ref<number>
+  isPanning: Ref<boolean>
+  isTouchGestureActive: Ref<boolean>
+  renderScale: Ref<number>
+  spacePressed: Ref<boolean>
+  viewportRef: Ref<HTMLElement | null>
+}
+
+function getDocumentIndex(width: number, col: number, row: number): number {
+  return row * width + col
+}
+
+function getBrushCursorTarget(col: number, row: number, size: number): CanvasCursor {
+  const offset = Math.floor((size - 1) / 2)
+
+  return {
+    col: col - offset,
+    row: row - offset,
+    size,
+  }
+}
+
+export function useCanvasPointer(options: UseCanvasPointerOptions) {
+  const colorStore = useColorStore()
+  const editorStore = useEditorStore()
+  const { activeSlot, bg, fg } = storeToRefs(colorStore)
+  const { activeTool, brushSize, document } = storeToRefs(editorStore)
+
+  const cursor = ref<CanvasCursor | null>(null)
+  const hoverCell = ref<CanvasPoint | null>(null)
+  const pointerInsideDocument = ref(false)
+  const pointerPosition = ref<{ x: number; y: number } | null>(null)
+  const hoverPointerType = ref<string | null>(null)
+  const previewPixels = ref<string[] | null>(null)
+  const previewMode = ref<PreviewMode>('overlay')
+
+  let activeSession: ActiveSession | null = null
+
+  function clearHoverState() {
+    cursor.value = null
+    hoverCell.value = null
+    pointerInsideDocument.value = false
+    pointerPosition.value = null
+    hoverPointerType.value = null
+  }
+
+  function clearPreviewState() {
+    previewPixels.value = null
+    previewMode.value = 'overlay'
+  }
+
+  function getRelativePointerPosition(clientX: number, clientY: number) {
+    const viewport = options.viewportRef.value
+    if (viewport == null) {
+      return null
+    }
+
+    const rect = viewport.getBoundingClientRect()
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    }
+  }
+
+  function getPointFromClientPosition(clientX: number, clientY: number): CanvasPoint | null {
+    const relativePosition = getRelativePointerPosition(clientX, clientY)
+    if (relativePosition == null) {
+      return null
+    }
+
+    const effectiveScale = options.renderScale.value * options.displayScale.value
+    const col = Math.floor((relativePosition.x - options.displayPan.value.x) / effectiveScale)
+    const row = Math.floor((relativePosition.y - options.displayPan.value.y) / effectiveScale)
+
+    if (col < 0 || row < 0 || col >= document.value.width || row >= document.value.height) {
+      return null
+    }
+
+    return { col, row }
+  }
+
+  function updateHoverState(clientX: number, clientY: number, pointerType: string) {
+    if (pointerType === 'touch') {
+      pointerPosition.value = null
+    } else {
+      pointerPosition.value = getRelativePointerPosition(clientX, clientY)
+    }
+
+    hoverPointerType.value = pointerType
+
+    if (options.isPanning.value || options.isTouchGestureActive.value) {
+      cursor.value = null
+      hoverCell.value = null
+      pointerInsideDocument.value = false
+      return null
+    }
+
+    const point = getPointFromClientPosition(clientX, clientY)
+    if (point == null) {
+      cursor.value = null
+      hoverCell.value = null
+      pointerInsideDocument.value = false
+      return null
+    }
+
+    hoverCell.value = point
+    pointerInsideDocument.value = true
+    cursor.value =
+      activeTool.value === 'pencil' || activeTool.value === 'eraser'
+        ? getBrushCursorTarget(point.col, point.row, brushSize.value)
+        : { col: point.col, row: point.row, size: 1 }
+
+    return point
+  }
+
+  function getStrokeColor(pointerType: string, button: number, tool: ToolId): string {
+    if (tool === 'eraser') {
+      return EMPTY_PIXEL
+    }
+
+    if (pointerType === 'touch') {
+      return activeSlot.value === 'fg' ? fg.value : bg.value
+    }
+
+    return button === 2 ? bg.value : fg.value
+  }
+
+  function getEyedropperSlot(pointerType: string, button: number): ActiveColorSlot {
+    if (pointerType === 'touch') {
+      return activeSlot.value
+    }
+
+    return button === 2 ? 'bg' : 'fg'
+  }
+
+  function sampleVisibleColor(col: number, row: number): string {
+    const pixel =
+      document.value.pixels[getDocumentIndex(document.value.width, col, row)] ?? EMPTY_PIXEL
+    return isTransparentPixel(pixel) ? TRANSPARENT : normalizeTransparentPixel(pixel)
+  }
+
+  function applyStrokeSegment(
+    pixels: string[],
+    from: CanvasPoint,
+    to: CanvasPoint,
+    color: string,
+  ): boolean {
+    let changed = false
+
+    for (const point of bresenhamLine(from.col, from.row, to.col, to.row)) {
+      changed =
+        stampBrushInto(
+          pixels,
+          document.value.width,
+          document.value.height,
+          point.col,
+          point.row,
+          brushSize.value,
+          color,
+        ) || changed
+    }
+
+    return changed
+  }
+
+  function renderLinePreview(session: LineSession) {
+    const nextPixels = [...session.basePixels]
+    let hasChanges = false
+
+    for (const point of bresenhamLine(
+      session.startPoint.col,
+      session.startPoint.row,
+      session.currentPoint.col,
+      session.currentPoint.row,
+    )) {
+      hasChanges =
+        stampBrushInto(
+          nextPixels,
+          document.value.width,
+          document.value.height,
+          point.col,
+          point.row,
+          brushSize.value,
+          session.color,
+        ) || hasChanges
+    }
+
+    session.draftPixels = nextPixels
+    session.hasChanges = hasChanges
+    previewPixels.value = nextPixels
+    previewMode.value = 'overlay'
+  }
+
+  function capturePointer(event: PointerEvent) {
+    const target = event.currentTarget
+    if (!(target instanceof Element) || !('setPointerCapture' in target)) {
+      return
+    }
+
+    target.setPointerCapture(event.pointerId)
+  }
+
+  function releasePointer(event: PointerEvent) {
+    const target = event.currentTarget
+    if (!(target instanceof Element) || !('releasePointerCapture' in target)) {
+      return
+    }
+
+    if (!target.hasPointerCapture(event.pointerId)) {
+      return
+    }
+
+    target.releasePointerCapture(event.pointerId)
+  }
+
+  function commitActiveSession() {
+    if (activeSession == null) {
+      return
+    }
+
+    if (activeSession.hasChanges) {
+      editorStore.setPixels(activeSession.draftPixels)
+    }
+
+    activeSession = null
+    clearPreviewState()
+  }
+
+  function cancelActiveInteraction() {
+    activeSession = null
+    clearPreviewState()
+  }
+
+  function onPointerDown(event: PointerEvent) {
+    if (options.isPanning.value || options.isTouchGestureActive.value) {
+      return
+    }
+
+    if (event.pointerType !== 'touch') {
+      if (options.spacePressed.value || event.button === 1) {
+        return
+      }
+
+      if (event.button !== 0 && event.button !== 2) {
+        return
+      }
+    }
+
+    const point = updateHoverState(event.clientX, event.clientY, event.pointerType)
+    if (point == null) {
+      return
+    }
+
+    const tool = activeTool.value
+
+    if (tool === 'fill') {
+      const targetIndex = getDocumentIndex(document.value.width, point.col, point.row)
+      const targetColor = document.value.pixels[targetIndex] ?? EMPTY_PIXEL
+      const fillColor = getStrokeColor(event.pointerType, event.button, tool)
+
+      if (normalizeTransparentPixel(targetColor) === normalizeTransparentPixel(fillColor)) {
+        return
+      }
+
+      editorStore.setPixels(
+        floodFill(
+          document.value.pixels,
+          document.value.width,
+          document.value.height,
+          point.col,
+          point.row,
+          targetColor,
+          fillColor,
+        ),
+      )
+      event.preventDefault()
+      return
+    }
+
+    if (tool === 'eyedropper') {
+      const sampledColor = sampleVisibleColor(point.col, point.row)
+      const slot = getEyedropperSlot(event.pointerType, event.button)
+
+      if (slot === 'fg') {
+        colorStore.setFg(sampledColor)
+      } else {
+        colorStore.setBg(sampledColor)
+      }
+
+      event.preventDefault()
+      return
+    }
+
+    if (tool === 'line') {
+      const strokeColor = getStrokeColor(event.pointerType, event.button, tool)
+      const session: LineSession = {
+        basePixels: [...document.value.pixels],
+        color: strokeColor,
+        currentPoint: point,
+        draftPixels: [...document.value.pixels],
+        hasChanges: false,
+        kind: 'line',
+        pointerId: event.pointerId,
+        startPoint: point,
+      }
+
+      activeSession = session
+      renderLinePreview(session)
+      capturePointer(event)
+      event.preventDefault()
+      return
+    }
+
+    const strokeColor = getStrokeColor(event.pointerType, event.button, tool)
+    const draftPixels = [...document.value.pixels]
+    const hasChanges = applyStrokeSegment(draftPixels, point, point, strokeColor)
+
+    activeSession = {
+      color: strokeColor,
+      draftPixels,
+      hasChanges,
+      kind: 'stroke',
+      lastPoint: point,
+      pointerId: event.pointerId,
+    }
+    previewPixels.value = draftPixels
+    previewMode.value = 'replace'
+    capturePointer(event)
+    event.preventDefault()
+  }
+
+  function onPointerMove(event: PointerEvent) {
+    const point = updateHoverState(event.clientX, event.clientY, event.pointerType)
+
+    if (activeSession == null || activeSession.pointerId !== event.pointerId || point == null) {
+      return
+    }
+
+    if (activeSession.kind === 'stroke') {
+      if (point.col === activeSession.lastPoint.col && point.row === activeSession.lastPoint.row) {
+        return
+      }
+
+      activeSession.hasChanges =
+        applyStrokeSegment(
+          activeSession.draftPixels,
+          activeSession.lastPoint,
+          point,
+          activeSession.color,
+        ) || activeSession.hasChanges
+      activeSession.lastPoint = point
+      previewPixels.value = activeSession.draftPixels
+      previewMode.value = 'replace'
+      event.preventDefault()
+      return
+    }
+
+    activeSession.currentPoint = point
+    renderLinePreview(activeSession)
+    event.preventDefault()
+  }
+
+  function onPointerUp(event: PointerEvent) {
+    if (activeSession == null || activeSession.pointerId !== event.pointerId) {
+      return
+    }
+
+    commitActiveSession()
+    releasePointer(event)
+    updateHoverState(event.clientX, event.clientY, event.pointerType)
+    event.preventDefault()
+  }
+
+  function onPointerCancel(event: PointerEvent) {
+    if (activeSession == null || activeSession.pointerId !== event.pointerId) {
+      return
+    }
+
+    cancelActiveInteraction()
+    releasePointer(event)
+    updateHoverState(event.clientX, event.clientY, event.pointerType)
+  }
+
+  function onContextMenu(event: MouseEvent) {
+    event.preventDefault()
+  }
+
+  watch(
+    () => [activeTool.value, brushSize.value] as const,
+    () => {
+      if (hoverCell.value == null) {
+        return
+      }
+
+      cursor.value =
+        activeTool.value === 'pencil' || activeTool.value === 'eraser'
+          ? getBrushCursorTarget(hoverCell.value.col, hoverCell.value.row, brushSize.value)
+          : { col: hoverCell.value.col, row: hoverCell.value.row, size: 1 }
+    },
+  )
+
+  return {
+    cancelActiveInteraction,
+    clearHoverState,
+    cursor,
+    hoverCell,
+    hoverPointerType,
+    onContextMenu,
+    onPointerCancel,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    pointerInsideDocument,
+    pointerPosition,
+    previewMode,
+    previewPixels,
+    updateHoverState,
+  }
+}

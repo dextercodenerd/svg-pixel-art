@@ -25,10 +25,12 @@ const props = withDefaults(
     cursor: CanvasCursor | null
     document: EditorDocument
     gridVisible: boolean
+    previewMode?: 'overlay' | 'replace'
     previewPixels?: string[] | null
     zoom: ZoomLevel
   }>(),
   {
+    previewMode: 'overlay',
     previewPixels: null,
   },
 )
@@ -147,15 +149,19 @@ function drawCursor(context: CanvasRenderingContext2D) {
     return
   }
 
-  const widthInPixels = Math.min(props.cursor.size, props.document.width - props.cursor.col)
-  const heightInPixels = Math.min(props.cursor.size, props.document.height - props.cursor.row)
+  const startCol = Math.max(0, props.cursor.col)
+  const startRow = Math.max(0, props.cursor.row)
+  const endCol = Math.min(props.document.width, props.cursor.col + props.cursor.size)
+  const endRow = Math.min(props.document.height, props.cursor.row + props.cursor.size)
+  const widthInPixels = endCol - startCol
+  const heightInPixels = endRow - startRow
 
   if (widthInPixels <= 0 || heightInPixels <= 0) {
     return
   }
 
-  const x = props.cursor.col * renderScale.value
-  const y = props.cursor.row * renderScale.value
+  const x = startCol * renderScale.value
+  const y = startRow * renderScale.value
   const width = widthInPixels * renderScale.value
   const height = heightInPixels * renderScale.value
 
@@ -191,16 +197,20 @@ function drawCanvas() {
     context.fillRect(0, 0, canvasWidth.value, canvasHeight.value)
   }
 
-  drawPixelsFast(context, props.document.pixels, props.document.width, props.document.height)
+  const shouldReplacePixels =
+    props.previewMode === 'replace' &&
+    props.previewPixels != null &&
+    props.previewPixels.length === props.document.pixels.length
+  const basePixels = shouldReplacePixels ? props.previewPixels : props.document.pixels
 
-  if (props.previewPixels != null && props.previewPixels.length === props.document.pixels.length) {
-    drawPixelsFast(
-      context,
-      props.previewPixels,
-      props.document.width,
-      props.document.height,
-      0.65,
-    )
+  drawPixelsFast(context, basePixels, props.document.width, props.document.height)
+
+  if (
+    props.previewMode === 'overlay' &&
+    props.previewPixels != null &&
+    props.previewPixels.length === props.document.pixels.length
+  ) {
+    drawPixelsFast(context, props.previewPixels, props.document.width, props.document.height, 0.65)
   }
 
   // Only draw the grid when "pixels" are large enough that grid lines are visible
@@ -228,6 +238,7 @@ watch(
       props.zoom,
       props.gridVisible,
       props.previewPixels,
+      props.previewMode,
       props.cursor,
     ] as const,
   () => {

@@ -70,6 +70,10 @@ select {
   cursor: none;
 }
 
+.canvas-viewport {
+  touch-action: none;
+}
+
 .canvas-viewport[data-cursor-mode='system'] {
   cursor: default;
 }
@@ -296,6 +300,7 @@ select {
   color: var(--ink-strong);
   font-weight: 700;
   letter-spacing: 0.02em;
+  cursor: pointer;
   transition:
     transform 120ms ease,
     border-color 120ms ease,
@@ -324,6 +329,101 @@ select {
     0 10px 30px -18px rgba(92, 55, 31, 0.4);
 }
 
+.editor-button:disabled,
+.tool-button:disabled,
+.tool-icon-button:disabled,
+.brush-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+  transform: none;
+  box-shadow: none;
+}
+
+.tool-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.tool-icon-button,
+.brush-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 242, 0.98), rgba(248, 236, 220, 0.96)),
+    rgba(255, 250, 242, 0.94);
+  color: var(--ink-strong);
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.tool-icon-button:hover,
+.brush-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--panel-border-strong);
+  box-shadow: 0 12px 28px -24px rgba(55, 31, 11, 0.65);
+}
+
+.tool-icon-button:focus-visible,
+.brush-button:focus-visible {
+  outline: 2px solid rgba(92, 55, 31, 0.24);
+  outline-offset: 2px;
+}
+
+.tool-icon-button[data-active='true'],
+.brush-button[data-active='true'] {
+  border-color: rgba(92, 55, 31, 0.42);
+  background:
+    linear-gradient(180deg, rgba(255, 241, 216, 0.98), rgba(242, 211, 172, 0.98)),
+    rgba(255, 248, 239, 0.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 16px 34px -24px rgba(92, 55, 31, 0.52);
+}
+
+.tool-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.editor-tooltip {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(63, 42, 24, 0.18);
+  border-radius: 999px;
+  background: rgba(34, 22, 13, 0.96);
+  color: rgba(255, 247, 235, 0.96);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 10px 28px -16px rgba(0, 0, 0, 0.5);
+}
+
+.brush-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.brush-button {
+  justify-content: flex-start;
+  font-weight: 700;
+}
+
+.brush-icon {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
 .swatch-chip {
   width: 2.5rem;
   height: 2.5rem;
@@ -332,4 +432,10 @@ select {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     0 8px 20px -16px rgba(0, 0, 0, 0.35);
+}
+
+@media (max-width: 640px) {
+  .tool-strip {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }

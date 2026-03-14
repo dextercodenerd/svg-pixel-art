@@ -9,6 +9,7 @@
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import PixelCanvas from './PixelCanvas.vue'
+import { useCanvasPointer } from '../../composables/useCanvasPointer'
 import { usePan } from '../../composables/usePan'
 import { useTouchViewport } from '../../composables/useTouchViewport'
 import { useZoom } from '../../composables/useZoom'
@@ -16,28 +17,16 @@ import { useEditorStore } from '../../stores/editor'
 import { isEditableTarget } from '../../utils/dom'
 import type { PanOffset } from '../../types'
 
-const props = withDefaults(
-  defineProps<{
-    previewPixels?: string[] | null
-  }>(),
-  {
-    previewPixels: null,
-  },
-)
-
 const emit = defineEmits<{
   cursorChange: [payload: { col: number | null; row: number | null }]
 }>()
 
 const editorStore = useEditorStore()
-const { activeTool, brushSize, document, gridVisible, panOffset } = storeToRefs(editorStore)
+const { activeTool, document, gridVisible, panOffset } = storeToRefs(editorStore)
 const { getZoomInLevel, getZoomOutLevel, renderScale, zoom, zoomToLevel } = useZoom()
 
 const viewportRef = ref<HTMLElement | null>(null)
 const spacePressed = ref(false)
-const cursor = ref<{ col: number; row: number; size: number } | null>(null)
-const pointerPosition = ref<{ x: number; y: number } | null>(null)
-const pointerInsideDocument = ref(false)
 
 function getCanvasSize(scaleMultiplier = 1) {
   return {
@@ -68,6 +57,15 @@ const touchViewport = useTouchViewport({
 
 const displayPan = computed<PanOffset>(() => touchViewport.previewPan.value ?? panOffset.value)
 const displayScale = computed(() => touchViewport.previewScale.value)
+const canvasPointer = useCanvasPointer({
+  displayPan,
+  displayScale,
+  isPanning,
+  isTouchGestureActive: touchViewport.isGestureActive,
+  renderScale,
+  spacePressed,
+  viewportRef,
+})
 
 const outerTransform = computed(() => ({
   transform: `translate(${displayPan.value.x}px, ${displayPan.value.y}px)`,
@@ -77,65 +75,24 @@ const innerTransform = computed(() => ({
   transform: `scale(${displayScale.value})`,
 }))
 
-function getCursorSize(): number {
-  if (activeTool.value === 'pencil' || activeTool.value === 'eraser') {
-    return brushSize.value
-  }
-
-  return 1
-}
-
-function clearCursor() {
-  cursor.value = null
-  pointerPosition.value = null
-  pointerInsideDocument.value = false
-  emit('cursorChange', { col: null, row: null })
-}
-
-function updateCursor(clientX: number, clientY: number) {
-  const viewport = viewportRef.value
-  if (viewport == null || isPanning.value) {
-    clearCursor()
-    return
-  }
-
-  const viewportRect = viewport.getBoundingClientRect()
-  const relX = clientX - viewportRect.left
-  const relY = clientY - viewportRect.top
-  pointerPosition.value = { x: relX, y: relY }
-  const effectiveScale = renderScale.value * displayScale.value
-  const col = Math.floor((relX - displayPan.value.x) / effectiveScale)
-  const row = Math.floor((relY - displayPan.value.y) / effectiveScale)
-
-  if (col < 0 || row < 0 || col >= document.value.width || row >= document.value.height) {
-    cursor.value = null
-    pointerInsideDocument.value = false
-    emit('cursorChange', { col: null, row: null })
-    return
-  }
-
-  cursor.value = {
-    col,
-    row,
-    size: getCursorSize(),
-  }
-  pointerInsideDocument.value = true
-  emit('cursorChange', { col, row })
-}
-
 const pointerStyle = computed(() => {
-  if (pointerPosition.value == null) {
+  if (canvasPointer.pointerPosition.value == null) {
     return undefined
   }
 
   return {
-    left: `${pointerPosition.value.x}px`,
-    top: `${pointerPosition.value.y}px`,
+    left: `${canvasPointer.pointerPosition.value.x}px`,
+    top: `${canvasPointer.pointerPosition.value.y}px`,
   }
 })
 
 const showToolPointer = computed(() => {
-  return pointerPosition.value != null && pointerInsideDocument.value && !isPanning.value
+  return (
+    canvasPointer.pointerPosition.value != null &&
+    canvasPointer.pointerInsideDocument.value &&
+    !isPanning.value &&
+    canvasPointer.hoverPointerType.value !== 'touch'
+  )
 })
 
 const viewportCursorMode = computed(() => {
@@ -143,7 +100,10 @@ const viewportCursorMode = computed(() => {
     return 'pan'
   }
 
-  return pointerInsideDocument.value ? 'custom' : 'system'
+  return canvasPointer.pointerInsideDocument.value &&
+    canvasPointer.hoverPointerType.value !== 'touch'
+    ? 'custom'
+    : 'system'
 })
 
 function zoomAtPointer(nextZoom: number, clientX: number, clientY: number) {
@@ -166,24 +126,25 @@ function zoomAtPointer(nextZoom: number, clientX: number, clientY: number) {
       y: cursorY - oldRow * renderScale.value,
     }),
   )
-  updateCursor(clientX, clientY)
+  canvasPointer.updateHoverState(clientX, clientY, 'mouse')
 }
 
 function onViewportMouseDown(event: MouseEvent) {
   if (event.button === 1 || (event.button === 0 && spacePressed.value)) {
     startPan(event.clientX, event.clientY)
-    clearCursor()
+    canvasPointer.cancelActiveInteraction()
+    canvasPointer.clearHoverState()
     event.preventDefault()
   }
 }
 
 function onViewportMouseMove(event: MouseEvent) {
-  updateCursor(event.clientX, event.clientY)
+  canvasPointer.updateHoverState(event.clientX, event.clientY, 'mouse')
 }
 
 function onViewportMouseLeave() {
   if (!isPanning.value) {
-    clearCursor()
+    canvasPointer.clearHoverState()
   }
 }
 
@@ -196,7 +157,8 @@ function onViewportWheel(event: WheelEvent) {
 
 function onViewportTouchStart(event: TouchEvent) {
   if (touchViewport.handleTouchStart(event)) {
-    clearCursor()
+    canvasPointer.cancelActiveInteraction()
+    canvasPointer.clearHoverState()
     event.preventDefault()
   }
 }
@@ -227,7 +189,7 @@ function onWindowMouseUp(event: MouseEvent) {
   }
 
   stopPan()
-  updateCursor(event.clientX, event.clientY)
+  canvasPointer.updateHoverState(event.clientX, event.clientY, 'mouse')
 }
 
 function onWindowKeyDown(event: KeyboardEvent) {
@@ -246,7 +208,8 @@ function onWindowKeyUp(event: KeyboardEvent) {
 function onWindowBlur() {
   spacePressed.value = false
   stopPan()
-  clearCursor()
+  canvasPointer.cancelActiveInteraction()
+  canvasPointer.clearHoverState()
   touchViewport.cancelGesture()
 }
 
@@ -300,7 +263,8 @@ watch(
   () => [document.value.width, document.value.height] as const,
   () => {
     resetForDocumentBounds()
-    clearCursor()
+    canvasPointer.cancelActiveInteraction()
+    canvasPointer.clearHoverState()
   },
 )
 
@@ -309,6 +273,17 @@ watch(
   () => {
     clampCurrentPan()
   },
+)
+
+watch(
+  () => canvasPointer.hoverCell.value,
+  point => {
+    emit('cursorChange', {
+      col: point?.col ?? null,
+      row: point?.row ?? null,
+    })
+  },
+  { immediate: true },
 )
 </script>
 
@@ -332,11 +307,17 @@ watch(
     <div class="absolute left-0 top-0 will-change-transform" :style="outerTransform">
       <div class="origin-top-left will-change-transform" :style="innerTransform">
         <PixelCanvas
-          :cursor="cursor"
+          :cursor="canvasPointer.cursor.value"
           :document="document"
           :grid-visible="gridVisible"
-          :preview-pixels="props.previewPixels"
+          :preview-mode="canvasPointer.previewMode.value"
+          :preview-pixels="canvasPointer.previewPixels.value"
           :zoom="zoom"
+          @contextmenu="canvasPointer.onContextMenu"
+          @pointercancel="canvasPointer.onPointerCancel"
+          @pointerdown="canvasPointer.onPointerDown"
+          @pointermove="canvasPointer.onPointerMove"
+          @pointerup="canvasPointer.onPointerUp"
         />
       </div>
     </div>
