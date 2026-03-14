@@ -29,7 +29,8 @@ const hueCanvasRef = ref<HTMLCanvasElement | null>(null)
 const svCanvasRef = ref<HTMLCanvasElement | null>(null)
 const hueCanvasSize = ref<CanvasSize>({ width: 0, height: 0 })
 const svCanvasSize = ref<CanvasSize>({ width: 0, height: 0 })
-const displayHue = ref(0)
+const initialHsv = hexToHsv(props.modelValue)
+const displayHue = ref(initialHsv.s > 0 ? initialHsv.h : 0)
 
 let resizeObserver: ResizeObserver | null = null
 let activePointerId: number | null = null
@@ -50,12 +51,12 @@ const svMarkerStyle = computed(() => ({
 
 watch(
   () => props.modelValue,
-  () => {
-    if (currentHsv.value.s > 0) {
-      displayHue.value = currentHsv.value.h
+  value => {
+    const nextHsv = hexToHsv(value)
+    if (nextHsv.s > 0 && nextHsv.h !== displayHue.value) {
+      displayHue.value = nextHsv.h
+      drawSvCanvas()
     }
-
-    drawCanvases()
   },
   { immediate: true },
 )
@@ -159,6 +160,7 @@ function updateHueFromPointer(event: PointerEvent) {
   const rgb = hsvToRgb(nextHue, s, v)
 
   displayHue.value = nextHue
+  drawSvCanvas()
   emit('update:modelValue', formatHex({ ...rgb, a }))
 }
 
@@ -247,6 +249,7 @@ onBeforeUnmount(() => {
         <canvas
           ref="svCanvasRef"
           class="block h-[184px] w-full rounded-[20px] border border-[var(--panel-border)]"
+          style="touch-action: none"
           @pointerdown="startDrag('sv', $event)"
           @pointermove="continueDrag('sv', $event)"
           @pointerup="endDrag('sv', $event)"
@@ -265,6 +268,7 @@ onBeforeUnmount(() => {
         <canvas
           ref="hueCanvasRef"
           class="block h-5 w-full rounded-full border border-[var(--panel-border)]"
+          style="touch-action: none"
           @pointerdown="startDrag('hue', $event)"
           @pointermove="continueDrag('hue', $event)"
           @pointerup="endDrag('hue', $event)"

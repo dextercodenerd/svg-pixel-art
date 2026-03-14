@@ -6,7 +6,7 @@
   found in the LICENSE file in the root directory of this source tree.
 -->
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, useId, watch } from 'vue'
 import { normalizeHexInput } from '../../services/colorUtils'
 
 const props = defineProps<{
@@ -17,6 +17,9 @@ const emit = defineEmits<{
   'update:modelValue': [color: string]
 }>()
 
+const hintId = `hex-color-hint-${useId()}`
+const inputId = `hex-color-input-${useId()}`
+const inputRef = ref<HTMLInputElement | null>(null)
 const inputValue = ref(props.modelValue)
 const isInvalid = ref(false)
 
@@ -47,27 +50,37 @@ function resetValue() {
   inputValue.value = props.modelValue
   isInvalid.value = false
 }
+
+function focusInput() {
+  inputRef.value?.focus({ preventScroll: true })
+  inputRef.value?.select()
+}
+
+defineExpose({
+  focusInput,
+})
 </script>
 
 <template>
   <div class="space-y-2">
     <div class="flex items-center justify-between gap-3">
-      <label class="status-label" for="hex-color-input">Hex</label>
+      <label class="status-label" :for="inputId">Hex</label>
       <span class="text-xs text-[var(--ink-muted)]">Accepts `#RRGGBB` or `#RRGGBBAA`</span>
     </div>
     <input
-      id="hex-color-input"
+      :id="inputId"
+      ref="inputRef"
       v-model="inputValue"
       type="text"
       spellcheck="false"
       class="color-input"
       :data-invalid="isInvalid"
-      aria-describedby="hex-color-hint"
+      :aria-describedby="hintId"
       @blur="commitValue"
       @keydown.enter.prevent="commitValue"
       @keydown.esc.prevent="resetValue"
     />
-    <p id="hex-color-hint" class="text-xs text-[var(--ink-soft)]">
+    <p :id="hintId" class="text-xs text-[var(--ink-soft)]">
       {{
         isInvalid
           ? 'Enter 6 or 8 hex digits. Invalid input stays local until corrected.'

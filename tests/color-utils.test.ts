@@ -6,7 +6,15 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 import { describe, expect, it } from 'vitest'
-import { formatHex, hexToAlpha, hexToRgb, hsvToRgb, parseHex, rgbToHsv } from '../src/services/colorUtils'
+import {
+  formatHex,
+  hexToAlpha,
+  hexToRgb,
+  hsvToRgb,
+  normalizeHexInput,
+  parseHex,
+  rgbToHsv,
+} from '../src/services/colorUtils'
 
 describe('parseHex', () => {
   it('parses and formats 8-digit RGBA hex colors', () => {
@@ -23,6 +31,16 @@ describe('parseHex', () => {
     expect(() => parseHex('')).toThrow()
     expect(() => parseHex('gg0000ff')).toThrow()
     expect(() => parseHex('#xyz')).toThrow()
+  })
+
+  it('normalizes six-digit input by trimming, lowercasing, and expanding alpha', () => {
+    expect(normalizeHexInput(' #AABBCC ')).toBe('#aabbccff')
+  })
+
+  it('returns null for invalid normalized input', () => {
+    expect(normalizeHexInput('')).toBeNull()
+    expect(normalizeHexInput('#abcd')).toBeNull()
+    expect(normalizeHexInput('#zzzzzz')).toBeNull()
   })
 })
 

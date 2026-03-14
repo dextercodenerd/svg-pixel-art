@@ -100,11 +100,6 @@ export function hexToHsv(value: string): HsvColor {
   return rgbToHsv(r, g, b)
 }
 
-export function hexToCssColor(value: string): string {
-  const { r, g, b, a } = parseHex(value)
-  return `rgba(${r}, ${g}, ${b}, ${Number((a / 255).toFixed(3))})`
-}
-
 export function rgbToHsv(r: number, g: number, b: number): HsvColor {
   const red = clampByte(r) / 255
   const green = clampByte(g) / 255

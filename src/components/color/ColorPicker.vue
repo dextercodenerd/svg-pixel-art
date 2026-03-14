@@ -6,7 +6,7 @@
   found in the LICENSE file in the root directory of this source tree.
 -->
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import HexInput from './HexInput.vue'
 import HsvPicker from './HsvPicker.vue'
@@ -22,6 +22,7 @@ const emit = defineEmits<{
   confirm: [color: string]
 }>()
 
+const hexInputRef = ref<InstanceType<typeof HexInput> | null>(null)
 const open = ref(false)
 const workingColor = ref(props.modelValue)
 const previewStyle = computed(() => ({ backgroundColor: workingColor.value }))
@@ -49,6 +50,12 @@ function cancelColor() {
   workingColor.value = props.modelValue
   open.value = false
 }
+
+async function onOpenAutoFocus(event: Event) {
+  event.preventDefault()
+  await nextTick()
+  hexInputRef.value?.focusInput()
+}
 </script>
 
 <template>
@@ -64,7 +71,7 @@ function cancelColor() {
         :side-offset="14"
         :collision-padding="20"
         class="color-popover"
-        @open-auto-focus.prevent
+        @open-auto-focus="onOpenAutoFocus"
       >
         <div class="flex items-start justify-between gap-4">
           <div>
@@ -81,7 +88,7 @@ function cancelColor() {
         <div class="mt-4 space-y-4">
           <HsvPicker v-model="workingColor" />
           <RgbaSliders v-model="workingColor" />
-          <HexInput v-model="workingColor" />
+          <HexInput ref="hexInputRef" v-model="workingColor" />
         </div>
 
         <div class="mt-5 flex items-center justify-end gap-2">
