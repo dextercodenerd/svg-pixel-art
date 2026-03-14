@@ -106,6 +106,8 @@ export function useTouchViewport(options: UseTouchViewportOptions) {
     const center = getTouchCenter(touches, viewport)
     const distance = getTouchDistance(touches, viewport)
     const nextScale = distance / state.initialDistance
+    // options.renderScale reflects the pre-gesture zoom (zoom is only snapped on commit),
+    // so multiplying by nextScale gives the correct continuous preview position.
     const focusCanvasX = state.focusArtX * options.renderScale.value
     const focusCanvasY = state.focusArtY * options.renderScale.value
 

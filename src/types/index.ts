@@ -54,11 +54,8 @@ export function createIsoTimestamp(date = new Date()): string {
 }
 
 export function isTransparentPixel(value: string | null | undefined): boolean {
-  if (value == null) {
-    return true
-  }
-
-  return value === EMPTY_PIXEL || value.toLowerCase() === TRANSPARENT
+  // No need for lower casing the input value, because transparent pixel is the same in upper and lower case
+  return value == null || value === EMPTY_PIXEL || value === TRANSPARENT
 }
 
 export function normalizeTransparentPixel(value: string | null | undefined): string {
@@ -78,7 +75,9 @@ export function cloneDocument(document: EditorDocument): EditorDocument {
 }
 
 export function createEmptyPixels(width: number, height: number, fill = EMPTY_PIXEL): string[] {
-  return Array.from({ length: width * height }, () => normalizeTransparentPixel(fill))
+  // Normalize once outside the loop -- the result is the same string for every cell
+  const normalizedFill = normalizeTransparentPixel(fill)
+  return Array<string>(width * height).fill(normalizedFill)
 }
 
 export function createEditorDocument(options?: {

@@ -10,8 +10,9 @@ import { ref } from 'vue'
 import { useEditorStore } from '../stores/editor'
 import type { PanOffset } from '../types'
 import type { Ref } from 'vue'
+import { clamp } from '../utils/math'
 
-const PAN_CLAMP_MARGIN = 32
+export const PAN_CLAMP_MARGIN = 32
 
 interface CanvasSize {
   width: number
@@ -26,10 +27,6 @@ interface UsePanOptions {
 interface PointerPosition {
   x: number
   y: number
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
 }
 
 export function usePan(options: UsePanOptions) {
@@ -133,7 +130,6 @@ export function usePan(options: UsePanOptions) {
   }
 
   return {
-    PAN_CLAMP_MARGIN,
     panOffset,
     isPanning,
     clampPan,

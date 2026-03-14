@@ -5,6 +5,9 @@
  * This source code is licensed under the GNU Affero General Public License v3.0
  * found in the LICENSE file in the root directory of this source tree.
  */
+import { clampByte, clampUnit } from '../utils/math'
+
+
 export interface RgbColor {
   r: number
   g: number
@@ -21,36 +24,46 @@ export interface HsvColor {
   v: number
 }
 
-const HEX_COLOR_PATTERN = /^#?(?<rgb>[0-9a-f]{6})(?<alpha>[0-9a-f]{2})?$/i
+// Valid forms: #RRGGBB or #RRGGBBAA (with or without leading #)
+const HEX_6 = 6
+const HEX_8 = 8
 
-function clampByte(value: number): number {
-  return Math.min(255, Math.max(0, Math.round(value)))
+function isValidHex(s: string, normalizedLength: number): boolean {
+  return (
+    (normalizedLength === HEX_6 || normalizedLength === HEX_8) &&
+    /^[0-9a-f]+$/i.test(s)
+  )
 }
 
-function clampUnit(value: number): number {
-  return Math.min(1, Math.max(0, value))
+function parseHexByte(s: string, offset: number): number {
+  return (charToNibble(s, offset) << 4) | charToNibble(s, offset + 1)
+}
+
+function charToNibble(s: string, i: number): number {
+  const c = s.charCodeAt(i)
+  // '0'-'9' = 48-57, 'a'-'f' = 97-102, 'A'-'F' = 65-70
+  if (c >= 48 && c <= 57) return c - 48
+  if (c >= 65 && c <= 70) return c - 55
+  if (c >= 97 && c <= 102) return c - 87
+  return 0
+}
+
+export function parseHex(value: string): ParsedHexColor {
+  const s = value.startsWith('#') ? value.slice(1) : value
+  if (!isValidHex(s, s.length)) {
+    throw new Error(`Invalid hex color: ${value}`)
+  }
+
+  const r = parseHexByte(s, 0)
+  const g = parseHexByte(s, 2)
+  const b = parseHexByte(s, 4)
+  const a = s.length === HEX_8 ? parseHexByte(s, 6) : 255
+
+  return { r, g, b, a }
 }
 
 function toHexByte(value: number): string {
   return clampByte(value).toString(16).padStart(2, '0')
-}
-
-export function parseHex(value: string): ParsedHexColor {
-  const match = value.match(HEX_COLOR_PATTERN)
-
-  if (!match?.groups?.rgb) {
-    throw new Error(`Invalid hex color: ${value}`)
-  }
-
-  const rgb = match.groups.rgb
-  const alpha = match.groups.alpha ?? 'ff'
-
-  return {
-    r: Number.parseInt(rgb.slice(0, 2), 16),
-    g: Number.parseInt(rgb.slice(2, 4), 16),
-    b: Number.parseInt(rgb.slice(4, 6), 16),
-    a: Number.parseInt(alpha, 16),
-  }
 }
 
 export function formatHex(color: ParsedHexColor): string {

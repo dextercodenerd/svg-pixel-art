@@ -10,6 +10,7 @@ import { ref } from 'vue'
 import { useHistoryStore } from './history'
 import type { BrushSize, EditorDocument, PanOffset, ToolId, ZoomLevel } from '../types'
 import {
+  cloneDocument,
   createEditorDocument,
   createIsoTimestamp,
   EMPTY_PIXEL,
@@ -25,6 +26,10 @@ export const useEditorStore = defineStore('editor', () => {
   const gridVisible = ref(true)
   const panOffset = ref<PanOffset>({ x: 0, y: 0 })
 
+  // Explicit flag that marks the store as holding the auto-created initial state.
+  // Used by App.vue on startup to avoid a fragile pixel-comparison heuristic.
+  const isInitialState = ref(true)
+
   function newDocument(options?: {
     width?: number
     height?: number
@@ -34,7 +39,7 @@ export const useEditorStore = defineStore('editor', () => {
     const width = options?.width ?? 16
     const height = options?.height ?? 16
 
-    assertCanvasSize(width, height)
+    validateCanvasSize(width, height)
 
     const nextDocument = createEditorDocument({
       width,
@@ -44,22 +49,27 @@ export const useEditorStore = defineStore('editor', () => {
     })
 
     document.value = nextDocument
+    isInitialState.value = false
     resetViewState()
+    // nextDocument was constructed here -- use pushOwned to avoid an extra clone
     useHistoryStore().resetWith(nextDocument)
   }
 
   function loadDocument(nextDocument: EditorDocument) {
-    assertCanvasSize(nextDocument.width, nextDocument.height)
-    assertPixelBuffer(nextDocument)
+    validateCanvasSize(nextDocument.width, nextDocument.height)
+    validatePixelBuffer(nextDocument)
 
-    const clonedDocument = normalizeDocumentPixels(nextDocument)
-    document.value = clonedDocument
+    // Normalize once -> the result is already an isolated object, so pass it as owned
+    const normalized = normalizeDocumentPixels(nextDocument)
+    document.value = cloneDocument(normalized) // store gets its own copy
+    isInitialState.value = false
     resetViewState()
-    useHistoryStore().resetWith(clonedDocument)
+    useHistoryStore().resetWith(normalized) // history keeps the other copy
   }
 
   function renameDocument(name: string) {
-    document.value = {
+    // Construct a new document object in this scope -- use pushOwned to avoid an extra clone
+    const renamed: EditorDocument = {
       ...document.value,
       metadata: {
         ...document.value.metadata,
@@ -67,7 +77,8 @@ export const useEditorStore = defineStore('editor', () => {
         updatedAt: createIsoTimestamp(),
       },
     }
-    useHistoryStore().push(document.value)
+    document.value = renamed
+    useHistoryStore().pushOwned(cloneDocument(renamed))
   }
 
   function setPixels(pixels: string[]) {
@@ -75,15 +86,25 @@ export const useEditorStore = defineStore('editor', () => {
       throw new Error('Pixel array length must match document dimensions.')
     }
 
-    document.value = {
+    // Build the new document in this scope -- each pixel is already expected to be valid
+    // by callers (the drawing compositor normalizes before calling setPixels).
+    // We normalize here as a safety net but do it in-place to avoid an extra copy.
+    for (let i = 0; i < pixels.length; i++) {
+      pixels[i] = normalizeTransparentPixel(pixels[i])
+    }
+
+    const next: EditorDocument = {
       ...document.value,
-      pixels: pixels.map(normalizeTransparentPixel),
+      pixels,
       metadata: {
         ...document.value.metadata,
         updatedAt: createIsoTimestamp(),
       },
     }
-    useHistoryStore().pushOwned(document.value)
+
+    document.value = next
+    // next was constructed here and pixels was mutated in-place -- safe to pushOwned
+    useHistoryStore().pushOwned(next)
   }
 
   function setTool(tool: ToolId) {
@@ -116,12 +137,14 @@ export const useEditorStore = defineStore('editor', () => {
     panOffset.value = { x: 0, y: 0 }
   }
 
+  // Called by the undo/redo path. History already clones snapshots on read, so the
+  // document arriving here is already an isolated copy -- skip normalizing.
   function syncWithHistory(nextDocument: EditorDocument | null) {
     if (nextDocument == null) {
       return
     }
 
-    document.value = normalizeDocumentPixels(nextDocument)
+    document.value = nextDocument
   }
 
   function normalizeDocumentPixels(nextDocument: EditorDocument): EditorDocument {
@@ -132,13 +155,22 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  function assertCanvasSize(width: number, height: number) {
-    if (width < 1 || height < 1 || width > MAX_CANVAS_SIZE || height > MAX_CANVAS_SIZE) {
-      throw new Error(`Document dimensions must be between 1 and ${MAX_CANVAS_SIZE}.`)
+  // Internal validation helpers -- not exposed on the public store surface
+
+  function validateCanvasSize(width: number, height: number) {
+    if (
+      !Number.isInteger(width) ||
+      !Number.isInteger(height) ||
+      width < 1 ||
+      height < 1 ||
+      width > MAX_CANVAS_SIZE ||
+      height > MAX_CANVAS_SIZE
+    ) {
+      throw new Error(`Document dimensions must be integers between 1 and ${MAX_CANVAS_SIZE}.`)
     }
   }
 
-  function assertPixelBuffer(nextDocument: EditorDocument) {
+  function validatePixelBuffer(nextDocument: EditorDocument) {
     if (nextDocument.pixels.length !== nextDocument.width * nextDocument.height) {
       throw new Error('Pixel array length must match document dimensions.')
     }
@@ -151,6 +183,7 @@ export const useEditorStore = defineStore('editor', () => {
     zoom,
     gridVisible,
     panOffset,
+    isInitialState,
     newDocument,
     loadDocument,
     renameDocument,
@@ -163,7 +196,5 @@ export const useEditorStore = defineStore('editor', () => {
     setPan,
     resetViewState,
     syncWithHistory,
-    assertCanvasSize,
-    assertPixelBuffer,
   }
 })

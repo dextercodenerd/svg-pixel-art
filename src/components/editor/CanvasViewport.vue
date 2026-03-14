@@ -264,6 +264,15 @@ onMounted(() => {
       clampCurrentPan()
     })
     resizeObserver.observe(viewportRef.value)
+
+    // Touch and wheel listeners must be non-passive so we can call preventDefault().
+    // Vue's template event bindings may register them as passive in some browsers,
+    // so we add them manually here to guarantee the flag.
+    viewportRef.value.addEventListener('touchstart', onViewportTouchStart, { passive: false })
+    viewportRef.value.addEventListener('touchmove', onViewportTouchMove, { passive: false })
+    viewportRef.value.addEventListener('touchend', onViewportTouchEnd, { passive: false })
+    viewportRef.value.addEventListener('touchcancel', onViewportTouchEnd, { passive: false })
+    viewportRef.value.addEventListener('wheel', onViewportWheel, { passive: false })
   }
 
   resetForDocumentBounds()
@@ -275,6 +284,15 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onWindowKeyDown)
   window.removeEventListener('keyup', onWindowKeyUp)
   window.removeEventListener('blur', onWindowBlur)
+
+  if (viewportRef.value != null) {
+    viewportRef.value.removeEventListener('touchstart', onViewportTouchStart)
+    viewportRef.value.removeEventListener('touchmove', onViewportTouchMove)
+    viewportRef.value.removeEventListener('touchend', onViewportTouchEnd)
+    viewportRef.value.removeEventListener('touchcancel', onViewportTouchEnd)
+    viewportRef.value.removeEventListener('wheel', onViewportWheel)
+  }
+
   resizeObserver?.disconnect()
 })
 
@@ -300,14 +318,10 @@ watch(
     class="canvas-viewport relative min-h-[320px] flex-1 overflow-hidden rounded-[28px] border border-[var(--panel-border)] bg-[rgba(120,88,56,0.08)]"
     :data-cursor-mode="viewportCursorMode"
     @auxclick.prevent
+    @contextmenu.prevent
     @mousedown="onViewportMouseDown"
     @mousemove="onViewportMouseMove"
     @mouseleave="onViewportMouseLeave"
-    @touchcancel="onViewportTouchEnd"
-    @touchend="onViewportTouchEnd"
-    @touchmove="onViewportTouchMove"
-    @touchstart="onViewportTouchStart"
-    @wheel="onViewportWheel"
   >
     <div
       v-if="showToolPointer"

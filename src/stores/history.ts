@@ -23,32 +23,27 @@ export const useHistoryStore = defineStore('history', () => {
     index.value = 0
   }
 
-  function push(document: EditorDocument) {
-    const nextSnapshots = snapshots.value.slice(0, index.value + 1).concat(cloneDocument(document))
+  // Shared internal append: discards redo branch, appends a document, trims to cap
+  function appendSnapshot(document: EditorDocument) {
+    // Discard everything after the current index (redo branch) in-place
+    snapshots.value.splice(index.value + 1)
+    snapshots.value.push(document)
 
-    if (nextSnapshots.length > MAX_HISTORY_SNAPSHOTS) {
-      snapshots.value = nextSnapshots.slice(nextSnapshots.length - MAX_HISTORY_SNAPSHOTS)
-      index.value = snapshots.value.length - 1
-      return
+    if (snapshots.value.length > MAX_HISTORY_SNAPSHOTS) {
+      snapshots.value.shift()
     }
 
-    snapshots.value = nextSnapshots
     index.value = snapshots.value.length - 1
   }
 
-  // Stores document as-is — caller must guarantee the document is an
+  function push(document: EditorDocument) {
+    appendSnapshot(cloneDocument(document))
+  }
+
+  // Stores document as-is -- caller must guarantee the document is an
   // isolated, freshly created object not referenced by any other code.
   function pushOwned(document: EditorDocument) {
-    const nextSnapshots = snapshots.value.slice(0, index.value + 1).concat(document)
-
-    if (nextSnapshots.length > MAX_HISTORY_SNAPSHOTS) {
-      snapshots.value = nextSnapshots.slice(nextSnapshots.length - MAX_HISTORY_SNAPSHOTS)
-      index.value = snapshots.value.length - 1
-      return
-    }
-
-    snapshots.value = nextSnapshots
-    index.value = snapshots.value.length - 1
+    appendSnapshot(document)
   }
 
   function undo() {
