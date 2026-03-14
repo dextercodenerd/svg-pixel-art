@@ -7,7 +7,14 @@
  */
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
-import { bresenhamLine, floodFill, stampBrushInto } from '../services/pixelOps'
+import {
+  applyColorAtIndices,
+  bresenhamLine,
+  collectStrokeIndices,
+  createPixelMask,
+  floodFill,
+  stampBrushInto,
+} from '../services/pixelOps'
 import { useColorStore } from '../stores/color'
 import { useEditorStore } from '../stores/editor'
 import { EMPTY_PIXEL, TRANSPARENT, isTransparentPixel, normalizeTransparentPixel } from '../types'
@@ -27,6 +34,8 @@ interface CanvasCursor {
 
 type PreviewMode = 'overlay' | 'replace'
 
+export const LINE_PREVIEW_PIXEL = '#000000a6'
+
 interface StrokeSession {
   color: string
   draftPixels: string[]
@@ -40,9 +49,9 @@ interface LineSession {
   basePixels: string[]
   color: string
   currentPoint: CanvasPoint
-  draftPixels: string[]
   hasChanges: boolean
   kind: 'line'
+  lineIndices: number[]
   pointerId: number
   startPoint: CanvasPoint
 }
@@ -217,30 +226,32 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
   }
 
   function renderLinePreview(session: LineSession) {
-    const nextPixels = [...session.basePixels]
-    let hasChanges = false
-
-    for (const point of bresenhamLine(
+    const lineIndices = collectStrokeIndices(
+      document.value.width,
+      document.value.height,
       session.startPoint.col,
       session.startPoint.row,
       session.currentPoint.col,
       session.currentPoint.row,
-    )) {
-      hasChanges =
-        stampBrushInto(
-          nextPixels,
-          document.value.width,
-          document.value.height,
-          point.col,
-          point.row,
-          brushSize.value,
-          session.color,
-        ) || hasChanges
+      brushSize.value,
+    )
+    const normalizedColor = normalizeTransparentPixel(session.color)
+    let hasChanges = false
+
+    for (const index of lineIndices) {
+      if (session.basePixels[index] !== normalizedColor) {
+        hasChanges = true
+        break
+      }
     }
 
-    session.draftPixels = nextPixels
+    session.lineIndices = lineIndices
     session.hasChanges = hasChanges
-    previewPixels.value = nextPixels
+    previewPixels.value = createPixelMask(
+      session.basePixels.length,
+      lineIndices,
+      LINE_PREVIEW_PIXEL,
+    )
     previewMode.value = 'overlay'
   }
 
@@ -271,7 +282,11 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       return
     }
 
-    if (activeSession.hasChanges) {
+    if (activeSession.kind === 'line' && activeSession.hasChanges) {
+      const nextPixels = [...activeSession.basePixels]
+      applyColorAtIndices(nextPixels, activeSession.lineIndices, activeSession.color)
+      editorStore.setPixels(nextPixels)
+    } else if (activeSession.kind === 'stroke' && activeSession.hasChanges) {
       editorStore.setPixels(activeSession.draftPixels)
     }
 
@@ -350,9 +365,9 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
         basePixels: [...document.value.pixels],
         color: strokeColor,
         currentPoint: point,
-        draftPixels: [...document.value.pixels],
         hasChanges: false,
         kind: 'line',
+        lineIndices: [],
         pointerId: event.pointerId,
         startPoint: point,
       }

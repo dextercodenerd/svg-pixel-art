@@ -4,7 +4,7 @@
 This repository is a Vite 8 + Vue 3 + TypeScript single-page app. Application code lives in `src/`, with entry setup in `src/main.ts`, the root component in `src/App.vue`, and reusable UI in `src/components/`. Static assets used by the app live in `src/assets/`; files served directly by Vite belong in `public/`. Production output is generated into `dist/` and should not be edited by hand.
 
 ## Build, Test, and Development Commands
-Use Yarn 4 for all package management and scripts.
+Use Yarn 4 for all package management and scripts. There is no npm!!!
 
 - `yarn dev`: start the local Vite dev server with HMR.
 - `yarn build`: run `vue-tsc -b` for type-checking, then produce a production build in `dist/`.

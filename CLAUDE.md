@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 /clera
 This document covers domain-specific architecture and implementation details for the pixel-art editor.
 
+There is no npm!!!
+
 ## Architecture Overview
 
 Client-only pixel-art editor SPA built with Vite 8, Vue 3, TypeScript, and Pinia. Tailwind CSS and Reka UI are installed; Phase 1 wires them into the build.

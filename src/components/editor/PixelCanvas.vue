@@ -91,7 +91,6 @@ function drawPixelsFast(
   pixels: string[],
   width: number,
   height: number,
-  alpha = 1,
 ) {
   // Allocate a 1:1 ImageData (one pixel per document "pixel"), then scale via drawImage.
   const imageData = context.createImageData(width, height)
@@ -108,7 +107,7 @@ function drawPixelsFast(
     data[offset] = r
     data[offset + 1] = g
     data[offset + 2] = b
-    data[offset + 3] = Math.round(a * alpha)
+    data[offset + 3] = a
   }
 
   // Write to an offscreen canvas so we can scale with drawImage (ImageData has no built-in scale).
@@ -217,7 +216,7 @@ function drawCanvas() {
     props.previewPixels != null &&
     props.previewPixels.length === props.document.pixels.length
   ) {
-    drawPixelsFast(context, props.previewPixels, props.document.width, props.document.height, 0.65)
+    drawPixelsFast(context, props.previewPixels, props.document.width, props.document.height)
   }
 
   // Only draw the grid when "pixels" are large enough that grid lines are visible

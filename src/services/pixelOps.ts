@@ -73,6 +73,72 @@ export function brushStamp(
   return nextPixels
 }
 
+export function collectStrokeIndices(
+  width: number,
+  height: number,
+  col0: number,
+  row0: number,
+  col1: number,
+  row1: number,
+  brushSize: BrushSize,
+): number[] {
+  const visited = new Uint8Array(width * height)
+  const indices: number[] = []
+
+  for (const point of bresenhamLine(col0, row0, col1, row1)) {
+    const origin = getBrushOrigin(point.col, point.row, brushSize)
+    const startCol = Math.max(0, origin.col)
+    const startRow = Math.max(0, origin.row)
+    const endCol = Math.min(width, origin.col + brushSize)
+    const endRow = Math.min(height, origin.row + brushSize)
+
+    for (let currentRow = startRow; currentRow < endRow; currentRow += 1) {
+      for (let currentCol = startCol; currentCol < endCol; currentCol += 1) {
+        const index = getPixelIndex(width, currentCol, currentRow)
+        if (visited[index] === 1) {
+          continue
+        }
+
+        visited[index] = 1
+        indices.push(index)
+      }
+    }
+  }
+
+  return indices
+}
+
+export function applyColorAtIndices(pixels: string[], indices: number[], color: string): boolean {
+  const normalizedColor = normalizeTransparentPixel(color)
+  let changed = false
+
+  for (const index of indices) {
+    if (pixels[index] === normalizedColor) {
+      continue
+    }
+
+    pixels[index] = normalizedColor
+    changed = true
+  }
+
+  return changed
+}
+
+export function createPixelMask(length: number, indices: number[], color: string): string[] {
+  const normalizedColor = normalizeTransparentPixel(color)
+  const mask = Array<string>(length).fill('')
+
+  if (normalizedColor === '') {
+    return mask
+  }
+
+  for (const index of indices) {
+    mask[index] = normalizedColor
+  }
+
+  return mask
+}
+
 export function bresenhamLine(
   col0: number,
   row0: number,

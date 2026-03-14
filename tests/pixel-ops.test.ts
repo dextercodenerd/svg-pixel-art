@@ -6,7 +6,14 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 import { describe, expect, it } from 'vitest'
-import { bresenhamLine, brushStamp, floodFill } from '../src/services/pixelOps'
+import {
+  applyColorAtIndices,
+  bresenhamLine,
+  brushStamp,
+  collectStrokeIndices,
+  createPixelMask,
+  floodFill,
+} from '../src/services/pixelOps'
 import { EMPTY_PIXEL } from '../src/types'
 
 describe('brushStamp', () => {
@@ -184,5 +191,31 @@ describe('floodFill', () => {
 
     expect(result).toEqual(pixels)
     expect(result).not.toBe(pixels)
+  })
+})
+
+describe('line helpers', () => {
+  it('collects each affected index once for a brushed line', () => {
+    expect(collectStrokeIndices(4, 4, 0, 0, 2, 2, 1)).toEqual([0, 5, 10])
+  })
+
+  it('builds a mask that only contains preview pixels for the pending line', () => {
+    expect(createPixelMask(6, [1, 4], '#000000a6')).toEqual([
+      EMPTY_PIXEL,
+      '#000000a6',
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      '#000000a6',
+      EMPTY_PIXEL,
+    ])
+  })
+
+  it('applies a real line color without touching unrelated pixels', () => {
+    const pixels = [EMPTY_PIXEL, '#00ff00ff', EMPTY_PIXEL, EMPTY_PIXEL]
+
+    const changed = applyColorAtIndices(pixels, [0, 2], '#ff0000ff')
+
+    expect(changed).toBe(true)
+    expect(pixels).toEqual(['#ff0000ff', '#00ff00ff', '#ff0000ff', EMPTY_PIXEL])
   })
 })
