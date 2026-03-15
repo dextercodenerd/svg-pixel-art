@@ -6,15 +6,23 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 
+interface EditableLikeTarget {
+  isContentEditable?: boolean
+  tagName?: string
+}
+
 export function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
+  if (target == null || typeof target !== 'object') {
     return false
   }
 
+  const editableTarget = target as EditableLikeTarget
+  const tagName = editableTarget.tagName?.toUpperCase()
+
   return (
-    target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
+    editableTarget.isContentEditable === true ||
+    tagName === 'INPUT' ||
+    tagName === 'TEXTAREA' ||
+    tagName === 'SELECT'
   )
 }

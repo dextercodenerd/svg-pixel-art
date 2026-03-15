@@ -259,14 +259,11 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
 })
 
-watch(
-  () => [document.value.width, document.value.height] as const,
-  () => {
-    resetForDocumentBounds()
-    canvasPointer.cancelActiveInteraction()
-    canvasPointer.clearHoverState()
-  },
-)
+watch([() => document.value.width, () => document.value.height], () => {
+  resetForDocumentBounds()
+  canvasPointer.cancelActiveInteraction()
+  canvasPointer.clearHoverState()
+})
 
 watch(
   () => zoom.value,

@@ -7,15 +7,13 @@
 -->
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useEditorStore } from '../../stores/editor'
-import { isEditableTarget } from '../../utils/dom'
+import { BRUSH_SIZES } from '../../types'
 import type { BrushSize } from '../../types'
 
 const editorStore = useEditorStore()
 const { brushSize } = storeToRefs(editorStore)
-
-const brushSizes: BrushSize[] = [1, 2, 3, 4]
 
 function getPreviewBox(size: BrushSize) {
   const unitSize = size * 3
@@ -28,41 +26,6 @@ function getPreviewBox(size: BrushSize) {
 }
 
 const brushLabel = computed(() => `${brushSize.value} x ${brushSize.value}`)
-
-function stepBrushSize(direction: -1 | 1) {
-  const currentIndex = brushSizes.indexOf(brushSize.value)
-  const nextIndex = Math.min(brushSizes.length - 1, Math.max(0, currentIndex + direction))
-  const nextSize = brushSizes[nextIndex]
-
-  if (nextSize != null) {
-    editorStore.setBrushSize(nextSize)
-  }
-}
-
-function onWindowKeyDown(event: KeyboardEvent) {
-  if (isEditableTarget(event.target)) {
-    return
-  }
-
-  if (event.key === '[') {
-    stepBrushSize(-1)
-    event.preventDefault()
-    return
-  }
-
-  if (event.key === ']') {
-    stepBrushSize(1)
-    event.preventDefault()
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', onWindowKeyDown)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onWindowKeyDown)
-})
 </script>
 
 <template>
@@ -71,7 +34,7 @@ onBeforeUnmount(() => {
     <strong class="status-value">{{ brushLabel }}</strong>
     <div class="brush-grid" role="group" aria-label="Brush size">
       <button
-        v-for="size in brushSizes"
+        v-for="size in BRUSH_SIZES"
         :key="size"
         type="button"
         class="brush-button"

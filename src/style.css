@@ -571,8 +571,13 @@ select {
     0 10px 24px -18px rgba(92, 55, 31, 0.4);
 }
 
+.segmented-control-item:focus-visible {
+  outline: 2px solid rgba(92, 55, 31, 0.24);
+  outline-offset: 2px;
+}
+
 .color-popover {
-  z-index: 40;
+  z-index: 90;
   width: min(92vw, 24rem);
   padding: 1rem;
   border: 1px solid rgba(63, 42, 24, 0.14);
@@ -733,6 +738,122 @@ select {
   box-shadow: 0 10px 16px -14px rgba(44, 29, 18, 0.4);
 }
 
+.swatch-action-button:focus-visible {
+  outline: 2px solid rgba(92, 55, 31, 0.24);
+  outline-offset: 2px;
+}
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(34, 22, 13, 0.48);
+  backdrop-filter: blur(6px);
+}
+
+.dialog-content {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 80;
+  width: min(calc(100vw - 2rem), 32rem);
+  max-height: min(calc(100vh - 2rem), 44rem);
+  overflow-y: auto;
+  border: 1px solid rgba(63, 42, 24, 0.14);
+  border-radius: 28px;
+  background: rgba(255, 250, 242, 0.98);
+  box-shadow:
+    0 28px 60px -28px rgba(44, 29, 18, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  transform: translate(-50%, -50%);
+  padding: 1.25rem;
+}
+
+.dialog-content-wide {
+  width: min(calc(100vw - 2rem), 42rem);
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+
+.dialog-description {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.dialog-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.dialog-toggle-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 242, 0.98), rgba(248, 236, 220, 0.96)),
+    rgba(255, 250, 242, 0.94);
+  color: var(--ink-strong);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.dialog-toggle-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--panel-border-strong);
+  box-shadow: 0 12px 28px -24px rgba(55, 31, 11, 0.65);
+}
+
+.dialog-toggle-item[data-state='on'] {
+  border-color: rgba(92, 55, 31, 0.42);
+  background:
+    linear-gradient(180deg, rgba(255, 241, 216, 0.98), rgba(242, 211, 172, 0.98)),
+    rgba(255, 248, 239, 0.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 16px 34px -24px rgba(92, 55, 31, 0.52);
+}
+
+.dialog-toggle-item:focus-visible,
+.dialog-color-trigger:focus-visible {
+  outline: 2px solid rgba(92, 55, 31, 0.24);
+  outline-offset: 2px;
+}
+
+.dialog-color-trigger {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 4rem;
+  height: 4rem;
+  padding: 0;
+  border: 1px solid rgba(44, 29, 18, 0.14);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 16px 26px -22px rgba(44, 29, 18, 0.45);
+}
+
+.dialog-color-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 @media (max-width: 640px) {
   .palette-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -742,5 +863,11 @@ select {
 @media (max-width: 640px) {
   .tool-strip {
     grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .dialog-toggle-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

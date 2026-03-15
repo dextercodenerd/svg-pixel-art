@@ -30,6 +30,7 @@ export interface PanOffset {
 }
 
 export const ZOOM_LEVELS: ZoomLevel[] = [1, 2, 4, 8, 16]
+export const BRUSH_SIZES: BrushSize[] = [1, 2, 3, 4]
 export const BASE_PIXEL_SIZE = 8
 export const MAX_UNDO_STEPS = 50
 export const MAX_HISTORY_SNAPSHOTS = MAX_UNDO_STEPS + 1

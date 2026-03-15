@@ -50,6 +50,7 @@ export const useEditorStore = defineStore('editor', () => {
     height?: number
     fill?: string
     name?: string
+    persistDraft?: boolean
   }) {
     const width = options?.width ?? 16
     const height = options?.height ?? 16
@@ -63,7 +64,7 @@ export const useEditorStore = defineStore('editor', () => {
       name: options?.name,
     })
 
-    applyDocumentLifecycle(nextDocument)
+    applyDocumentLifecycle(nextDocument, { persistDraft: options?.persistDraft })
   }
 
   function replaceDocument(nextDocument: EditorDocument, options?: { persistDraft?: boolean }) {

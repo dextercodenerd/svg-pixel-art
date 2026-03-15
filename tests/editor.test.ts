@@ -103,6 +103,31 @@ describe('editor store', () => {
     expect(editorStore.document.pixels).toEqual(Array(4).fill(EMPTY_PIXEL))
   })
 
+  it('persists the draft immediately when newDocument requests it', () => {
+    const editorStore = useEditorStore()
+    const historyStore = useHistoryStore()
+
+    editorStore.setZoom(8)
+    editorStore.setGridVisible(false)
+    editorStore.setPan({ x: 24, y: 12 })
+
+    editorStore.newDocument({
+      width: 3,
+      height: 2,
+      fill: '#abcdef88',
+      name: 'persisted-new',
+      persistDraft: true,
+    })
+
+    expect(editorStore.document.metadata.name).toBe('persisted-new')
+    expect(editorStore.zoom).toBe(1)
+    expect(editorStore.gridVisible).toBe(true)
+    expect(editorStore.panOffset).toEqual({ x: 0, y: 0 })
+    expect(historyStore.snapshots).toHaveLength(1)
+    expect(storage.getItem(DRAFT_STORAGE_KEY)).toContain('"name":"persisted-new"')
+    expect(storage.getItem(DRAFT_STORAGE_KEY)).toContain('"pixels":["#abcdef88","#abcdef88"')
+  })
+
   it('throws when newDocument receives dimensions outside 1-256', () => {
     const editorStore = useEditorStore()
 
