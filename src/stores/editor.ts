@@ -13,6 +13,7 @@ import {
   cloneDocument,
   createEditorDocument,
   createIsoTimestamp,
+  DEFAULT_DOCUMENT_NAME,
   EMPTY_PIXEL,
   MAX_CANVAS_SIZE,
   normalizeTransparentPixel,
@@ -68,12 +69,18 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function renameDocument(name: string) {
+    const normalizedName = name.trim() || DEFAULT_DOCUMENT_NAME
+
+    if (normalizedName === document.value.metadata.name) {
+      return
+    }
+
     // Construct a new document object in this scope -- use pushOwned to avoid an extra clone
     const renamed: EditorDocument = {
       ...document.value,
       metadata: {
         ...document.value.metadata,
-        name,
+        name: normalizedName,
         updatedAt: createIsoTimestamp(),
       },
     }

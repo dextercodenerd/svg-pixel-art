@@ -13,13 +13,16 @@ import FgBgDisplay from '../color/FgBgDisplay.vue'
 import PalettePanel from '../color/PalettePanel.vue'
 import BrushSizePicker from './BrushSizePicker.vue'
 import CanvasViewport from './CanvasViewport.vue'
+import DocumentActions from './DocumentActions.vue'
 import StatusBar from './StatusBar.vue'
 import ToolBar from './ToolBar.vue'
+import { useAutoSave } from '../../composables/useAutoSave'
 import { useZoom } from '../../composables/useZoom'
+import { loadDraft } from '../../services/draftStorage'
 import { useColorStore } from '../../stores/color'
 import { useEditorStore } from '../../stores/editor'
 import { useHistoryStore } from '../../stores/history'
-import { BASE_PIXEL_SIZE } from '../../types'
+import { BASE_PIXEL_SIZE, DEFAULT_DOCUMENT_NAME, EMPTY_PIXEL } from '../../types'
 import { isEditableTarget } from '../../utils/dom'
 
 const editorStore = useEditorStore()
@@ -29,12 +32,15 @@ const historyStore = useHistoryStore()
 const { document, gridVisible, zoom } = storeToRefs(editorStore)
 const { canRedo, canUndo } = storeToRefs(historyStore)
 const { resetZoom, zoomIn, zoomOut } = useZoom()
+const autoSaveEnabled = ref(false)
 
 const cursorCol = ref<number | null>(null)
 const cursorRow = ref<number | null>(null)
 
 const effectivePixelSize = computed(() => BASE_PIXEL_SIZE * zoom.value)
 const documentSummary = computed(() => `${document.value.width} x ${document.value.height}`)
+
+useAutoSave({ enabled: autoSaveEnabled })
 
 function onCursorChange(payload: { col: number | null; row: number | null }) {
   cursorCol.value = payload.col
@@ -77,6 +83,24 @@ function onWindowKeyDown(event: KeyboardEvent) {
 }
 
 onMounted(() => {
+  if (editorStore.isInitialState) {
+    const draft = loadDraft()
+
+    if (draft != null) {
+      editorStore.loadDocument(draft)
+      editorStore.resetViewState()
+      historyStore.resetWith(draft)
+    } else {
+      editorStore.newDocument({
+        width: 32,
+        height: 32,
+        fill: EMPTY_PIXEL,
+        name: DEFAULT_DOCUMENT_NAME,
+      })
+    }
+  }
+
+  autoSaveEnabled.value = true
   window.addEventListener('keydown', onWindowKeyDown)
 })
 
@@ -90,6 +114,9 @@ onBeforeUnmount(() => {
     <aside class="panel order-2 p-5 md:order-1">
       <p class="eyebrow">Document</p>
       <h1 class="mt-3 text-2xl font-semibold tracking-tight">SVG Pixel Art</h1>
+      <div class="mt-5">
+        <DocumentActions />
+      </div>
       <div class="mt-5 space-y-3">
         <div class="status-card">
           <span class="status-label">Name</span>
@@ -110,8 +137,8 @@ onBeforeUnmount(() => {
       <div
         class="mt-6 rounded-[24px] border border-[var(--panel-border)] bg-[var(--panel-inner)] p-4 text-sm text-[var(--ink-soft)]"
       >
-        Phase 4 adds the full color workflow: FG/BG slots, a synced picker, alpha controls, and a
-        persistent palette.
+        Phase 5 wires in draft restore, import/export, and document naming while keeping the color
+        workflow persistent across document changes.
       </div>
     </aside>
 

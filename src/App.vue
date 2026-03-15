@@ -6,25 +6,7 @@
   found in the LICENSE file in the root directory of this source tree.
 -->
 <script setup lang="ts">
-import { onMounted } from 'vue'
 import EditorShell from './components/editor/EditorShell.vue'
-import { useEditorStore } from './stores/editor'
-import { EMPTY_PIXEL } from './types'
-
-const editorStore = useEditorStore()
-
-onMounted(() => {
-  // Bootstrap a 32x32 transparent workspace on first launch.
-  // The `isInitialState` flag is set by the store on construction and cleared
-  // on any user-triggered document change -- avoids fragile pixel comparisons.
-  if (editorStore.isInitialState) {
-    editorStore.newDocument({
-      width: 32,
-      height: 32,
-      fill: EMPTY_PIXEL,
-    })
-  }
-})
 </script>
 
 <template>
