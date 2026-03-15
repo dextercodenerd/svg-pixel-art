@@ -7,12 +7,13 @@
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { saveDraft } from '../services/draftStorage'
 import { useHistoryStore } from './history'
 import type { BrushSize, EditorDocument, PanOffset, ToolId, ZoomLevel } from '../types'
 import {
-  cloneDocument,
   createEditorDocument,
   createIsoTimestamp,
+  DEFAULT_DOCUMENT_NAME,
   EMPTY_PIXEL,
   MAX_CANVAS_SIZE,
   normalizeTransparentPixel,
@@ -29,6 +30,20 @@ export const useEditorStore = defineStore('editor', () => {
   // Explicit flag that marks the store as holding the auto-created initial state.
   // Used by App.vue on startup to avoid a fragile pixel-comparison heuristic.
   const isInitialState = ref(true)
+
+  function applyDocumentLifecycle(
+    nextDocument: EditorDocument,
+    options?: { persistDraft?: boolean },
+  ) {
+    document.value = nextDocument
+    isInitialState.value = false
+    resetViewState()
+    useHistoryStore().resetWith(nextDocument)
+
+    if (options?.persistDraft === true) {
+      saveDraft(nextDocument)
+    }
+  }
 
   function newDocument(options?: {
     width?: number
@@ -48,37 +63,39 @@ export const useEditorStore = defineStore('editor', () => {
       name: options?.name,
     })
 
-    document.value = nextDocument
-    isInitialState.value = false
-    resetViewState()
-    // nextDocument was constructed here -- use pushOwned to avoid an extra clone
-    useHistoryStore().resetWith(nextDocument)
+    applyDocumentLifecycle(nextDocument)
   }
 
-  function loadDocument(nextDocument: EditorDocument) {
+  function replaceDocument(nextDocument: EditorDocument, options?: { persistDraft?: boolean }) {
     validateCanvasSize(nextDocument.width, nextDocument.height)
     validatePixelBuffer(nextDocument)
 
-    // Normalize once -> the result is already an isolated object, so pass it as owned
     const normalized = normalizeDocumentPixels(nextDocument)
-    document.value = cloneDocument(normalized) // store gets its own copy
-    isInitialState.value = false
-    resetViewState()
-    useHistoryStore().resetWith(normalized) // history keeps the other copy
+    applyDocumentLifecycle(normalized, options)
+  }
+
+  function loadDocument(nextDocument: EditorDocument) {
+    replaceDocument(nextDocument)
   }
 
   function renameDocument(name: string) {
+    const normalizedName = name.trim() || DEFAULT_DOCUMENT_NAME
+
+    if (normalizedName === document.value.metadata.name) {
+      return
+    }
+
     // Construct a new document object in this scope -- use pushOwned to avoid an extra clone
     const renamed: EditorDocument = {
       ...document.value,
       metadata: {
         ...document.value.metadata,
-        name,
+        name: normalizedName,
         updatedAt: createIsoTimestamp(),
       },
     }
     document.value = renamed
-    useHistoryStore().pushOwned(cloneDocument(renamed))
+    useHistoryStore().push(renamed)
   }
 
   function setPixels(pixels: string[]) {
@@ -103,8 +120,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     document.value = next
-    // next was constructed here and pixels was mutated in-place -- safe to pushOwned
-    useHistoryStore().pushOwned(next)
+    useHistoryStore().push(next)
   }
 
   function setTool(tool: ToolId) {
@@ -193,6 +209,7 @@ export const useEditorStore = defineStore('editor', () => {
     panOffset,
     isInitialState,
     newDocument,
+    replaceDocument,
     loadDocument,
     renameDocument,
     setPixels,

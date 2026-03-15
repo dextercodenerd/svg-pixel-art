@@ -50,13 +50,20 @@ export const DEFAULT_PALETTE_SWATCHES = [
   '#c0b7b1ff',
 ] as const
 
+const HEX_PIXEL_PATTERN = /^#[0-9a-fA-F]{8}$/
+
 export function createIsoTimestamp(date = new Date()): string {
   return date.toISOString()
 }
 
 export function isTransparentPixel(value: string | null | undefined): boolean {
   // No need for lower casing the input value, because transparent pixel is the same in upper and lower case
-  return value == null || value === EMPTY_PIXEL || value === TRANSPARENT
+  if (value == null || value === EMPTY_PIXEL) {
+    return true
+  }
+
+  // Zero-alpha on any color is also a fully transparent pixel, and we can normalize it
+  return HEX_PIXEL_PATTERN.test(value) && value.slice(-2).toLowerCase() === '00'
 }
 
 export function normalizeTransparentPixel(value: string | null | undefined): string {
@@ -64,7 +71,7 @@ export function normalizeTransparentPixel(value: string | null | undefined): str
     return EMPTY_PIXEL
   }
 
-  return value ?? EMPTY_PIXEL
+  return typeof value === 'string' ? value.toLowerCase() : EMPTY_PIXEL
 }
 
 export function cloneDocument(document: EditorDocument): EditorDocument {
