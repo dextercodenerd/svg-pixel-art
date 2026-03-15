@@ -36,4 +36,27 @@ describe('color store', () => {
     expect(colorStore.fg).toBe('#aabbccff')
     expect(colorStore.bg).toBe('#112233ff')
   })
+
+  it('normalizes six-digit colors before storing them', () => {
+    const colorStore = useColorStore()
+
+    colorStore.setFg('#AABBCC')
+    colorStore.setBg('ddeeff')
+
+    expect(colorStore.fg).toBe('#aabbccff')
+    expect(colorStore.bg).toBe('#ddeeffff')
+  })
+
+  it('ignores invalid color writes', () => {
+    const colorStore = useColorStore()
+
+    colorStore.setFg('#123456ff')
+    colorStore.setBg('#abcdef12')
+
+    colorStore.setFg('not-a-color')
+    colorStore.setBg('#12345')
+
+    expect(colorStore.fg).toBe('#123456ff')
+    expect(colorStore.bg).toBe('#abcdef12')
+  })
 })

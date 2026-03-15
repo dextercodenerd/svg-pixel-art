@@ -7,10 +7,10 @@
  */
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
-import { DEFAULT_PALETTE_SWATCHES } from '../types'
+import { normalizeHexInput } from '../services/colorUtils'
+import { DEFAULT_PALETTE_SWATCHES, MAX_PALETTE_SWATCHES } from '../types'
 
 const PALETTE_STORAGE_KEY = 'pixel-art:palette'
-const MAX_SWATCHES = 32
 type PersistenceStatus = 'unknown' | 'available' | 'unavailable'
 
 function getLocalStorage(): Storage | null {
@@ -48,7 +48,9 @@ function readStoredPaletteSafely(): { swatches: string[]; status: PersistenceSta
     return {
       swatches: parsed
         .filter((value): value is string => typeof value === 'string')
-        .slice(0, MAX_SWATCHES),
+        .map(normalizeHexInput)
+        .filter((value): value is string => value != null)
+        .slice(0, MAX_PALETTE_SWATCHES),
       status: 'available',
     }
   } catch {
@@ -90,11 +92,12 @@ export const usePaletteStore = defineStore('palette', () => {
   )
 
   function addSwatch(color: string) {
-    if (swatches.value.length >= MAX_SWATCHES) {
+    const normalized = normalizeHexInput(color)
+    if (normalized == null || swatches.value.length >= MAX_PALETTE_SWATCHES) {
       return
     }
 
-    swatches.value.push(color)
+    swatches.value.push(normalized)
   }
 
   function removeSwatch(index: number) {
@@ -106,11 +109,12 @@ export const usePaletteStore = defineStore('palette', () => {
   }
 
   function updateSwatch(index: number, color: string) {
-    if (index < 0 || index >= swatches.value.length) {
+    const normalized = normalizeHexInput(color)
+    if (normalized == null || index < 0 || index >= swatches.value.length) {
       return
     }
 
-    swatches.value[index] = color
+    swatches.value[index] = normalized
   }
 
   function markPersistenceNoticeDismissed() {

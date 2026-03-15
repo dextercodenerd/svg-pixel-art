@@ -8,6 +8,9 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import ActiveColorSlotToggle from '../color/ActiveColorSlotToggle.vue'
+import FgBgDisplay from '../color/FgBgDisplay.vue'
+import PalettePanel from '../color/PalettePanel.vue'
 import BrushSizePicker from './BrushSizePicker.vue'
 import CanvasViewport from './CanvasViewport.vue'
 import StatusBar from './StatusBar.vue'
@@ -24,7 +27,6 @@ const colorStore = useColorStore()
 const historyStore = useHistoryStore()
 
 const { document, gridVisible, zoom } = storeToRefs(editorStore)
-const { fg, bg, activeSlot } = storeToRefs(colorStore)
 const { canRedo, canUndo } = storeToRefs(historyStore)
 const { resetZoom, zoomIn, zoomOut } = useZoom()
 
@@ -65,6 +67,12 @@ function onWindowKeyDown(event: KeyboardEvent) {
   if ((event.key === 'g' || event.key === 'G') && !event.metaKey && !event.ctrlKey) {
     editorStore.toggleGrid()
     event.preventDefault()
+    return
+  }
+
+  if ((event.key === 'x' || event.key === 'X') && !event.metaKey && !event.ctrlKey) {
+    colorStore.swap()
+    event.preventDefault()
   }
 }
 
@@ -102,8 +110,8 @@ onBeforeUnmount(() => {
       <div
         class="mt-6 rounded-[24px] border border-[var(--panel-border)] bg-[var(--panel-inner)] p-4 text-sm text-[var(--ink-soft)]"
       >
-        Phase 3 adds the drawing core. Import, export, and document dialogs are still staged for
-        later phases.
+        Phase 4 adds the full color workflow: FG/BG slots, a synced picker, alpha controls, and a
+        persistent palette.
       </div>
     </aside>
 
@@ -158,15 +166,9 @@ onBeforeUnmount(() => {
 
       <div class="mt-5 grid gap-3">
         <BrushSizePicker />
-        <div class="status-card">
-          <span class="status-label">Active colors</span>
-          <strong class="status-value">{{ activeSlot.toUpperCase() }}</strong>
-          <div class="mt-3 flex gap-3">
-            <span class="swatch-chip" :style="{ backgroundColor: fg }" title="Foreground" />
-            <span class="swatch-chip" :style="{ backgroundColor: bg }" title="Background" />
-          </div>
-          <span class="status-detail">FG {{ fg }} • BG {{ bg }}</span>
-        </div>
+        <FgBgDisplay />
+        <ActiveColorSlotToggle />
+        <PalettePanel />
       </div>
     </aside>
   </section>

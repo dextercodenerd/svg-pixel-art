@@ -164,3 +164,125 @@ describe('useCanvasPointer line preview', () => {
     ])
   })
 })
+
+describe('useCanvasPointer touch color slot behavior', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('uses the active BG slot for touch pencil strokes', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+
+    editorStore.loadDocument(createEditorDocument({ width: 4, height: 4 }))
+    editorStore.setTool('pencil')
+    colorStore.setFg('#112233ff')
+    colorStore.setBg('#ff00ffff')
+    colorStore.setActiveSlot('bg')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const touchEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 3,
+      pointerType: 'touch',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(touchEvent)
+    canvasPointer.onPointerUp(touchEvent)
+
+    expect(editorStore.document.pixels[0]).toBe('#ff00ffff')
+    expect(historyStore.snapshots).toHaveLength(2)
+  })
+
+  it('uses the active BG slot for touch fill operations', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+
+    editorStore.loadDocument(createEditorDocument({ width: 4, height: 4 }))
+    editorStore.setTool('fill')
+    colorStore.setFg('#112233ff')
+    colorStore.setBg('#00ffffff')
+    colorStore.setActiveSlot('bg')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const touchEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: new FakeElement() as unknown as Element,
+      pointerId: 5,
+      pointerType: 'touch',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(touchEvent)
+
+    expect(editorStore.document.pixels.every(pixel => pixel === '#00ffffff')).toBe(true)
+  })
+
+  it('samples into the active BG slot for touch eyedropper usage', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+
+    const document = createEditorDocument({ width: 4, height: 4 })
+    document.pixels[0] = '#123456ff'
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('eyedropper')
+    colorStore.setFg('#aaaaaaaa')
+    colorStore.setBg('#bbbbbbbb')
+    colorStore.setActiveSlot('bg')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const touchEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: new FakeElement() as unknown as Element,
+      pointerId: 9,
+      pointerType: 'touch',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(touchEvent)
+
+    expect(colorStore.fg).toBe('#aaaaaaaa')
+    expect(colorStore.bg).toBe('#123456ff')
+  })
+})

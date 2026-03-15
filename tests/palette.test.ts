@@ -45,6 +45,15 @@ describe('palette store', () => {
     expect(paletteStore.persistenceStatus).toBe('available')
   })
 
+  it('filters invalid stored entries and normalizes valid ones', () => {
+    getItemMock.mockReturnValue(JSON.stringify(['#112233', 'bad', '#AABBCCDD', 42, '#445566ff']))
+
+    const paletteStore = usePaletteStore()
+
+    expect(paletteStore.swatches).toEqual(['#112233ff', '#aabbccdd', '#445566ff'])
+    expect(paletteStore.persistenceStatus).toBe('available')
+  })
+
   it('falls back to defaults when stored JSON is malformed', () => {
     getItemMock.mockReturnValue('{not-json')
 
@@ -83,6 +92,16 @@ describe('palette store', () => {
 
     paletteStore.updateSwatch(-1, '#ff0000ff')
     paletteStore.updateSwatch(paletteStore.swatches.length, '#ff0000ff')
+
+    expect(paletteStore.swatches).toEqual(original)
+  })
+
+  it('addSwatch and updateSwatch ignore invalid colors', () => {
+    const paletteStore = usePaletteStore()
+    const original = [...paletteStore.swatches]
+
+    paletteStore.addSwatch('bad-color')
+    paletteStore.updateSwatch(0, '#12345')
 
     expect(paletteStore.swatches).toEqual(original)
   })

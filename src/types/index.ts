@@ -38,6 +38,7 @@ export const TRANSPARENT = '#00000000'
 export const EMPTY_PIXEL = ''
 export const DEFAULT_DOCUMENT_NAME = 'untitled-svg-pixel-art'
 export const DOCUMENT_VERSION = 1 as const
+export const MAX_PALETTE_SWATCHES = 32
 export const DEFAULT_PALETTE_SWATCHES = [
   '#000000ff',
   '#ffffffff',
