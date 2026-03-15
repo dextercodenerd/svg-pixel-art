@@ -6,23 +6,13 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 import { ref } from 'vue'
-import { saveDraft } from '../services/draftStorage'
+import { confirmImportReplacement } from '../services/documentConfirmations'
 import { parseJsonDocument, pngToDocument } from '../services/importService'
 import { useEditorStore } from '../stores/editor'
-import { useHistoryStore } from '../stores/history'
 import type { ComponentPublicInstance } from 'vue'
-
-function shouldConfirmReplacement(): boolean {
-  if (typeof window === 'undefined') {
-    return true
-  }
-
-  return window.confirm('Replace the current document? The current draft will be overwritten.')
-}
 
 export function useImport() {
   const editorStore = useEditorStore()
-  const historyStore = useHistoryStore()
 
   const fileInputRef = ref<HTMLInputElement | null>(null)
   const importError = ref<string | null>(null)
@@ -45,7 +35,7 @@ export function useImport() {
   async function importFile(file: File) {
     importError.value = null
 
-    if (!shouldConfirmReplacement()) {
+    if (!confirmImportReplacement()) {
       return
     }
 
@@ -53,10 +43,7 @@ export function useImport() {
 
     try {
       const document = await parseFile(file)
-      editorStore.loadDocument(document)
-      editorStore.resetViewState()
-      historyStore.resetWith(document)
-      saveDraft(document)
+      editorStore.replaceDocument(document, { persistDraft: true })
     } catch (error) {
       importError.value =
         error instanceof Error ? error.message : 'Unable to import the selected file.'

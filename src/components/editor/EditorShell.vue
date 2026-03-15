@@ -27,10 +27,9 @@ import { isEditableTarget } from '../../utils/dom'
 
 const editorStore = useEditorStore()
 const colorStore = useColorStore()
-const historyStore = useHistoryStore()
 
 const { document, gridVisible, zoom } = storeToRefs(editorStore)
-const { canRedo, canUndo } = storeToRefs(historyStore)
+const { canRedo, canUndo } = storeToRefs(useHistoryStore())
 const { resetZoom, zoomIn, zoomOut } = useZoom()
 const autoSaveEnabled = ref(false)
 
@@ -87,9 +86,7 @@ onMounted(() => {
     const draft = loadDraft()
 
     if (draft != null) {
-      editorStore.loadDocument(draft)
-      editorStore.resetViewState()
-      historyStore.resetWith(draft)
+      editorStore.replaceDocument(draft)
     } else {
       editorStore.newDocument({
         width: 32,

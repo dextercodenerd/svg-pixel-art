@@ -9,26 +9,45 @@ import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { saveDraft } from '../services/draftStorage'
 import { useEditorStore } from '../stores/editor'
+import type { EditorDocument } from '../types'
 import type { Ref } from 'vue'
 
 const AUTO_SAVE_DEBOUNCE_MS = 250
 
-export function useAutoSave(options?: { enabled?: Ref<boolean> }) {
-  const editorStore = useEditorStore()
-  const { document } = storeToRefs(editorStore)
+interface AutoSaveControllerOptions {
+  document: Ref<EditorDocument>
+  enabled?: Ref<boolean>
+  saveDocument?: (document: EditorDocument) => void
+  addBeforeUnloadListener?: (listener: () => void) => void
+  removeBeforeUnloadListener?: (listener: () => void) => void
+  setTimer?: typeof window.setTimeout
+  clearTimer?: typeof window.clearTimeout
+}
+
+export function createAutoSaveController(options: AutoSaveControllerOptions) {
   let timeoutId: number | null = null
+
+  const addBeforeUnloadListener =
+    options.addBeforeUnloadListener ??
+    (listener => window.addEventListener('beforeunload', listener))
+  const clearTimer = options.clearTimer ?? window.clearTimeout.bind(window)
+  const removeBeforeUnloadListener =
+    options.removeBeforeUnloadListener ??
+    (listener => window.removeEventListener('beforeunload', listener))
+  const saveDocument = options.saveDocument ?? saveDraft
+  const setTimer = options.setTimer ?? window.setTimeout.bind(window)
+
+  function isEnabled() {
+    return options.enabled?.value ?? true
+  }
 
   function clearPendingSave() {
     if (timeoutId == null) {
       return
     }
 
-    window.clearTimeout(timeoutId)
+    clearTimer(timeoutId)
     timeoutId = null
-  }
-
-  function isEnabled() {
-    return options?.enabled?.value ?? true
   }
 
   function saveNow() {
@@ -37,7 +56,7 @@ export function useAutoSave(options?: { enabled?: Ref<boolean> }) {
     }
 
     clearPendingSave()
-    saveDraft(document.value)
+    saveDocument(options.document.value)
   }
 
   function scheduleSave() {
@@ -46,9 +65,9 @@ export function useAutoSave(options?: { enabled?: Ref<boolean> }) {
     }
 
     clearPendingSave()
-    timeoutId = window.setTimeout(() => {
+    timeoutId = setTimer(() => {
       timeoutId = null
-      saveDraft(document.value)
+      saveDocument(options.document.value)
     }, AUTO_SAVE_DEBOUNCE_MS)
   }
 
@@ -56,20 +75,46 @@ export function useAutoSave(options?: { enabled?: Ref<boolean> }) {
     saveNow()
   }
 
+  function register() {
+    addBeforeUnloadListener(onBeforeUnload)
+  }
+
+  function unregister() {
+    clearPendingSave()
+    removeBeforeUnloadListener(onBeforeUnload)
+  }
+
+  return {
+    clearPendingSave,
+    onBeforeUnload,
+    register,
+    saveNow,
+    scheduleSave,
+    unregister,
+  }
+}
+
+export function useAutoSave(options?: { enabled?: Ref<boolean> }) {
+  const editorStore = useEditorStore()
+  const { document } = storeToRefs(editorStore)
+  const controller = createAutoSaveController({
+    document,
+    enabled: options?.enabled,
+  })
+
   watch(document, () => {
-    scheduleSave()
+    controller.scheduleSave()
   })
 
   onMounted(() => {
-    window.addEventListener('beforeunload', onBeforeUnload)
+    controller.register()
   })
 
   onBeforeUnmount(() => {
-    clearPendingSave()
-    window.removeEventListener('beforeunload', onBeforeUnload)
+    controller.unregister()
   })
 
   return {
-    saveNow,
+    saveNow: controller.saveNow,
   }
 }

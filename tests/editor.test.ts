@@ -5,17 +5,54 @@
  * This source code is licensed under the GNU Affero General Public License v3.0
  * found in the LICENSE file in the root directory of this source tree.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useEditorStore } from '../src/stores/editor'
 import { useHistoryStore } from '../src/stores/history'
 import { EMPTY_PIXEL, createEditorDocument } from '../src/types'
+import { DRAFT_STORAGE_KEY } from '../src/services/draftStorage'
+
+class MemoryStorage implements Storage {
+  private readonly values = new Map<string, string>()
+
+  get length() {
+    return this.values.size
+  }
+
+  clear() {
+    this.values.clear()
+  }
+
+  getItem(key: string) {
+    return this.values.has(key) ? (this.values.get(key) ?? null) : null
+  }
+
+  key(index: number) {
+    return [...this.values.keys()][index] ?? null
+  }
+
+  removeItem(key: string) {
+    this.values.delete(key)
+  }
+
+  setItem(key: string, value: string) {
+    this.values.set(key, value)
+  }
+}
 
 describe('editor store', () => {
+  let storage: MemoryStorage
+
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T16:00:00.000Z'))
     setActivePinia(createPinia())
+    storage = new MemoryStorage()
+    vi.stubGlobal('localStorage', storage)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('creates a new document with exact fill and resets view state', () => {
@@ -100,17 +137,49 @@ describe('editor store', () => {
     const historyStore = useHistoryStore()
     const external = createEditorDocument({ width: 2, height: 2, name: 'loaded' })
 
-    external.pixels = ['#00000000', '#102030ff', '', '#00000000']
+    external.pixels = ['#00000000', '#102030ff', '', '#ff00aa00']
 
     editorStore.loadDocument(external)
 
-    expect(editorStore.document.pixels).toEqual([EMPTY_PIXEL, '#102030ff', EMPTY_PIXEL, EMPTY_PIXEL])
+    expect(editorStore.document.pixels).toEqual([
+      EMPTY_PIXEL,
+      '#102030ff',
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+    ])
     expect(historyStore.currentSnapshot?.pixels).toEqual([
       EMPTY_PIXEL,
       '#102030ff',
       EMPTY_PIXEL,
       EMPTY_PIXEL,
     ])
+  })
+
+  it('replaceDocument resets view/history once and persists the normalized draft when requested', () => {
+    const editorStore = useEditorStore()
+    const historyStore = useHistoryStore()
+
+    editorStore.setZoom(8)
+    editorStore.setGridVisible(false)
+    editorStore.setPan({ x: 50, y: -20 })
+
+    const external = createEditorDocument({ width: 2, height: 2, name: 'replacement' })
+    external.pixels = ['#FF00AA00', '#abcdef88', '#010203ff', '#00000000']
+
+    editorStore.replaceDocument(external, { persistDraft: true })
+
+    expect(editorStore.document.pixels).toEqual([
+      EMPTY_PIXEL,
+      '#abcdef88',
+      '#010203ff',
+      EMPTY_PIXEL,
+    ])
+    expect(editorStore.zoom).toBe(1)
+    expect(editorStore.gridVisible).toBe(true)
+    expect(editorStore.panOffset).toEqual({ x: 0, y: 0 })
+    expect(historyStore.snapshots).toHaveLength(1)
+    expect(historyStore.currentSnapshot?.pixels).toEqual(editorStore.document.pixels)
+    expect(storage.getItem(DRAFT_STORAGE_KEY)).toContain('"pixels":["","#abcdef88","#010203ff",""]')
   })
 
   it('loadDocument throws when pixel data is shorter than the declared dimensions', () => {
@@ -162,7 +231,12 @@ describe('editor store', () => {
 
     editorStore.setPixels(['#00000000', '#abcdef88', '', '#00000000'])
 
-    expect(editorStore.document.pixels).toEqual([EMPTY_PIXEL, '#abcdef88', EMPTY_PIXEL, EMPTY_PIXEL])
+    expect(editorStore.document.pixels).toEqual([
+      EMPTY_PIXEL,
+      '#abcdef88',
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+    ])
     expect(historyStore.currentSnapshot?.pixels).toEqual([
       EMPTY_PIXEL,
       '#abcdef88',
@@ -215,7 +289,12 @@ describe('editor store', () => {
     expect(editorStore.document.width).toBe(2)
     expect(editorStore.document.height).toBe(2)
     expect(editorStore.document.metadata.name).toBe('undo-check')
-    expect(editorStore.document.pixels).toEqual(['#010203ff', EMPTY_PIXEL, EMPTY_PIXEL, EMPTY_PIXEL])
+    expect(editorStore.document.pixels).toEqual([
+      '#010203ff',
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+    ])
 
     editorStore.applyRedo()
     expect(editorStore.document.pixels).toEqual([

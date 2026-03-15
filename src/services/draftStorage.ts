@@ -5,7 +5,7 @@
  * This source code is licensed under the GNU Affero General Public License v3.0
  * found in the LICENSE file in the root directory of this source tree.
  */
-import { documentToJson } from './exportService'
+import { documentToCompactJson } from './exportService'
 import { parseJsonDocument } from './importService'
 import type { EditorDocument } from '../types'
 
@@ -30,7 +30,7 @@ export function saveDraft(document: EditorDocument) {
   }
 
   try {
-    storage.setItem(DRAFT_STORAGE_KEY, documentToJson(document))
+    storage.setItem(DRAFT_STORAGE_KEY, documentToCompactJson(document))
   } catch {
     // Ignore storage failures so the editor remains usable when persistence is blocked.
   }

@@ -31,7 +31,7 @@ function validateDimension(value: unknown, label: string): number {
 }
 
 function normalizeImportedPixel(value: unknown): string {
-  if (value === EMPTY_PIXEL || value === '#00000000') {
+  if (value === EMPTY_PIXEL) {
     return EMPTY_PIXEL
   }
 
@@ -39,7 +39,7 @@ function normalizeImportedPixel(value: unknown): string {
     throw new Error('Pixels must be empty strings or #RRGGBBAA values.')
   }
 
-  return normalizeTransparentPixel(value.toLowerCase())
+  return normalizeTransparentPixel(value)
 }
 
 function normalizeTimestamp(value: unknown): string | null {

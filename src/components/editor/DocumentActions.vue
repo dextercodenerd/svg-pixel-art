@@ -8,19 +8,19 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
+import { useDocumentExport } from '../../composables/useDocumentExport'
 import { useImport } from '../../composables/useImport'
-import { saveDraft } from '../../services/draftStorage'
-import { documentToJson, documentToSvg, getDocumentFilename } from '../../services/exportService'
+import { confirmNewDocumentReplacement } from '../../services/documentConfirmations'
 import { useEditorStore } from '../../stores/editor'
 import { DEFAULT_DOCUMENT_NAME, EMPTY_PIXEL } from '../../types'
 
 const editorStore = useEditorStore()
 const { document: editorDocument } = storeToRefs(editorStore)
+const { exportJson, exportSvg } = useDocumentExport()
 const { importError, isImporting, onFileChange, setFileInputElement, triggerImport } = useImport()
 
 const draftName = ref(editorDocument.value.metadata.name)
 const actionMessage = ref<string | null>(null)
-const hasPendingNameChange = ref(false)
 
 const documentDimensions = computed(
   () => `${editorDocument.value.width} x ${editorDocument.value.height}`,
@@ -29,15 +29,12 @@ const documentDimensions = computed(
 watch(
   editorDocument,
   nextDocument => {
-    hasPendingNameChange.value = false
     draftName.value = nextDocument.metadata.name
   },
   { immediate: true },
 )
 
 function commitDocumentName() {
-  hasPendingNameChange.value = false
-
   const nextName = draftName.value.trim() || DEFAULT_DOCUMENT_NAME
   draftName.value = nextName
 
@@ -46,43 +43,17 @@ function commitDocumentName() {
   }
 
   editorStore.renameDocument(nextName)
-  saveDraft(editorStore.document)
   actionMessage.value = 'Document name updated.'
 }
 
 function markNameDirty() {
-  hasPendingNameChange.value = true
   actionMessage.value = null
-}
-
-function confirmNewDocument(): boolean {
-  if (typeof window === 'undefined') {
-    return true
-  }
-
-  return window.confirm(
-    'Create a new 32x32 transparent document? The current draft will be replaced.',
-  )
-}
-
-function downloadText(content: string, mimeType: string, filename: string) {
-  const blob = new Blob([content], { type: mimeType })
-  const url = URL.createObjectURL(blob)
-  const link = window.document.createElement('a')
-
-  link.href = url
-  link.download = filename
-  link.click()
-
-  window.setTimeout(() => {
-    URL.revokeObjectURL(url)
-  }, 0)
 }
 
 function createNewDocument() {
   actionMessage.value = null
 
-  if (!confirmNewDocument()) {
+  if (!confirmNewDocumentReplacement()) {
     return
   }
 
@@ -93,23 +64,18 @@ function createNewDocument() {
     name: DEFAULT_DOCUMENT_NAME,
   })
   draftName.value = editorStore.document.metadata.name
-  saveDraft(editorStore.document)
   actionMessage.value = 'New document created.'
 }
 
-function exportJson() {
+function onExportJson() {
   actionMessage.value = null
-  const filename = getDocumentFilename(editorDocument.value, 'json')
-
-  downloadText(documentToJson(editorDocument.value), 'application/json;charset=utf-8', filename)
+  const filename = exportJson(editorDocument.value)
   actionMessage.value = `Exported ${filename}.`
 }
 
-function exportSvg() {
+function onExportSvg() {
   actionMessage.value = null
-  const filename = getDocumentFilename(editorDocument.value, 'svg')
-
-  downloadText(documentToSvg(editorDocument.value), 'image/svg+xml;charset=utf-8', filename)
+  const filename = exportSvg(editorDocument.value)
   actionMessage.value = `Exported ${filename}.`
 }
 </script>
@@ -154,8 +120,10 @@ function exportSvg() {
       >
         {{ isImporting ? 'Importing…' : 'Import' }}
       </button>
-      <button type="button" class="editor-button w-full" @click="exportJson()">Export JSON</button>
-      <button type="button" class="editor-button w-full" @click="exportSvg()">Export SVG</button>
+      <button type="button" class="editor-button w-full" @click="onExportJson()">
+        Export JSON
+      </button>
+      <button type="button" class="editor-button w-full" @click="onExportSvg()">Export SVG</button>
     </div>
 
     <p

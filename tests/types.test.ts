@@ -17,27 +17,31 @@ import {
 } from '../src/types'
 
 describe('pixel transparency helpers', () => {
-  it('treats empty, null, undefined, and #00000000 as transparent', () => {
+  it('treats empty, null, undefined, and any fully transparent hex as transparent', () => {
     expect(isTransparentPixel(EMPTY_PIXEL)).toBe(true)
     expect(isTransparentPixel(TRANSPARENT)).toBe(true)
+    expect(isTransparentPixel('#ff00aa00')).toBe(true)
     expect(isTransparentPixel(null)).toBe(true)
     expect(isTransparentPixel(undefined)).toBe(true)
   })
 
   it('normalizes any transparent representation to the empty pixel value', () => {
     expect(normalizeTransparentPixel(TRANSPARENT)).toBe(EMPTY_PIXEL)
+    expect(normalizeTransparentPixel('#ff00aa00')).toBe(EMPTY_PIXEL)
     expect(normalizeTransparentPixel(undefined)).toBe(EMPTY_PIXEL)
   })
 
-  it('keeps non-transparent colors unchanged', () => {
+  it('keeps non-transparent colors unchanged except for canonical lowercasing', () => {
     expect(isTransparentPixel('#ff00ffff')).toBe(false)
     expect(normalizeTransparentPixel('#ff00ffff')).toBe('#ff00ffff')
+    expect(normalizeTransparentPixel('#FF00FF7F')).toBe('#ff00ff7f')
   })
 })
 
 describe('isTransparentPixel', () => {
-  it('treats uppercase #00000000 as transparent', () => {
+  it('treats uppercase fully transparent values as transparent', () => {
     expect(isTransparentPixel('#00000000'.toUpperCase())).toBe(true)
+    expect(isTransparentPixel('#FF00AA00')).toBe(true)
   })
 })
 

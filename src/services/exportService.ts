@@ -67,6 +67,10 @@ export function documentToJson(document: EditorDocument): string {
   return JSON.stringify(toSerializableDocument(document), null, 2)
 }
 
+export function documentToCompactJson(document: EditorDocument): string {
+  return JSON.stringify(toSerializableDocument(document))
+}
+
 export function documentToSvg(document: EditorDocument): string {
   const lines = [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -75,7 +79,7 @@ export function documentToSvg(document: EditorDocument): string {
   ]
 
   for (let index = 0; index < document.pixels.length; index += 1) {
-    const pixel = document.pixels[index]
+    const pixel = normalizeTransparentPixel(document.pixels[index])
     if (isTransparentPixel(pixel)) {
       continue
     }
