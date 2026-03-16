@@ -53,7 +53,6 @@ const actionMessage = ref<string | null>(null)
 const isNewDocumentDialogOpen = ref(false)
 
 const effectivePixelSize = computed(() => BASE_PIXEL_SIZE * zoom.value)
-const documentSummary = computed(() => `${document.value.width} x ${document.value.height}`)
 const isAnyDialogOpen = computed(
   () => confirmationDialog.isOpen.value || isNewDocumentDialogOpen.value,
 )
@@ -130,11 +129,19 @@ onMounted(() => {
 
 <template>
   <TooltipProvider :delay-duration="120">
-    <section class="grid h-full gap-3 md:grid-cols-[240px_minmax(0,1fr)_240px] md:gap-4">
-      <main class="panel order-1 flex min-h-[420px] min-w-0 flex-col overflow-hidden md:order-2">
-        <header
-          class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--panel-border)] px-4 py-4"
-        >
+    <section
+      class="grid h-full w-full gap-2 md:grid-cols-[68px_minmax(0,1fr)_300px] md:gap-3 overflow-hidden"
+    >
+      <aside
+        class="panel order-1 flex flex-col items-center p-3 md:p-4 overflow-y-auto overflow-x-hidden"
+      >
+        <ToolBar />
+      </aside>
+
+      <main
+        class="panel order-2 flex min-h-[300px] min-w-0 flex-col overflow-hidden bg-[var(--app-bg)] bg-opacity-30"
+      >
+        <header class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
           <div>
             <p class="eyebrow">Viewport</p>
             <h2 class="mt-2 text-xl font-semibold tracking-tight">Canvas workspace</h2>
@@ -231,57 +238,42 @@ onMounted(() => {
         <StatusBar :cursor-col="cursorCol" :cursor-row="cursorRow" />
       </main>
 
-      <aside class="panel order-2 p-4 md:order-1 md:p-5">
-        <p class="eyebrow">Document</p>
-        <h1 class="mt-3 text-2xl font-semibold tracking-tight">SVG Pixel Art</h1>
-        <div class="mt-5">
-          <DocumentActions
-            :import-error="importError"
-            :is-importing="isImporting"
-            :status-message="actionMessage"
-            @export-json="onExportJson"
-            @export-svg="onExportSvg"
-            @import="onImport"
-            @new="openNewDocumentDialog"
-          />
-        </div>
-        <div class="mt-5 space-y-3">
-          <div class="status-card">
-            <span class="status-label">Name</span>
-            <strong class="status-value">{{ document.metadata.name }}</strong>
-            <span class="status-detail">{{ documentSummary }}</span>
-          </div>
-          <div class="status-card">
-            <span class="status-label">History</span>
-            <strong class="status-value">Undo {{ canUndo ? 'ready' : 'empty' }}</strong>
-            <span class="status-detail">Redo {{ canRedo ? 'ready' : 'empty' }}</span>
-          </div>
-          <div class="status-card">
-            <span class="status-label">Viewport</span>
-            <strong class="status-value">{{ zoom }}x / {{ effectivePixelSize }}px</strong>
-            <span class="status-detail">Grid {{ gridVisible ? 'visible' : 'hidden' }}</span>
+      <aside class="panel order-3 flex flex-col gap-6 p-4 md:p-5 overflow-y-auto overflow-x-hidden">
+        <div>
+          <p class="eyebrow">Colors & Tools</p>
+          <div class="mt-4 grid gap-3">
+            <BrushSizePicker />
+            <FgBgDisplay />
+            <ActiveColorSlotToggle />
+            <PalettePanel />
           </div>
         </div>
-        <div
-          class="mt-6 rounded-[24px] border border-[var(--panel-border)] bg-[var(--panel-inner)] p-4 text-sm text-[var(--ink-soft)]"
-        >
-          Phase 6 completes the keyboard map, replacement dialogs, and final responsive polish.
-        </div>
-      </aside>
 
-      <aside class="panel order-3 p-4 md:p-5">
-        <p class="eyebrow">Tools</p>
-        <h2 class="mt-3 text-2xl font-semibold tracking-tight">Editor state</h2>
-
-        <div class="mt-5">
-          <ToolBar />
-        </div>
-
-        <div class="mt-5 grid gap-3">
-          <BrushSizePicker />
-          <FgBgDisplay />
-          <ActiveColorSlotToggle />
-          <PalettePanel />
+        <div>
+          <p class="eyebrow">Document</p>
+          <div class="mt-4">
+            <DocumentActions
+              :import-error="importError"
+              :is-importing="isImporting"
+              :status-message="actionMessage"
+              @export-json="onExportJson"
+              @export-svg="onExportSvg"
+              @import="onImport"
+              @new="openNewDocumentDialog"
+            />
+          </div>
+          <div class="mt-4 space-y-3">
+            <div class="status-card">
+              <span class="status-label">History</span>
+              <strong class="status-value">Undo {{ canUndo ? 'ready' : 'empty' }}</strong>
+              <span class="status-detail">Redo {{ canRedo ? 'ready' : 'empty' }}</span>
+            </div>
+            <div class="status-card">
+              <span class="status-label">Viewport</span>
+              <strong class="status-value">{{ zoom }}x / {{ effectivePixelSize }}px</strong>
+              <span class="status-detail">Grid {{ gridVisible ? 'visible' : 'hidden' }}</span>
+            </div>
+          </div>
         </div>
       </aside>
 

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(yarn add:*)",
+      "Bash(cd D:/projects/lavaray/svg-pixel-art && yarn build 2>&1)",
+      "Bash(npm run:*)",
+      "Bash(yarn test:*)",
+      "Bash(yarn build:*)"
+    ]
+  }
+}
