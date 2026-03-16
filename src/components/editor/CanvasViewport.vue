@@ -14,7 +14,7 @@ import { usePan } from '../../composables/usePan'
 import { useTouchViewport } from '../../composables/useTouchViewport'
 import { useZoom } from '../../composables/useZoom'
 import { useEditorStore } from '../../stores/editor'
-import { isEditableTarget } from '../../utils/dom'
+import { shouldHandleViewportPanKeydown } from '../../utils/dom'
 import type { PanOffset } from '../../types'
 
 const emit = defineEmits<{
@@ -193,7 +193,7 @@ function onWindowMouseUp(event: MouseEvent) {
 }
 
 function onWindowKeyDown(event: KeyboardEvent) {
-  if (event.code === 'Space' && !isEditableTarget(event.target)) {
+  if (shouldHandleViewportPanKeydown(event)) {
     spacePressed.value = true
     event.preventDefault()
   }

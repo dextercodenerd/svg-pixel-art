@@ -192,6 +192,8 @@ describe('editor store', () => {
     external.pixels = ['#FF00AA00', '#abcdef88', '#010203ff', '#00000000']
 
     editorStore.replaceDocument(external, { persistDraft: true })
+    external.metadata.name = 'mutated-after-replace'
+    external.pixels[1] = '#00000000'
 
     expect(editorStore.document.pixels).toEqual([
       EMPTY_PIXEL,
@@ -203,6 +205,7 @@ describe('editor store', () => {
     expect(editorStore.gridVisible).toBe(true)
     expect(editorStore.panOffset).toEqual({ x: 0, y: 0 })
     expect(historyStore.snapshots).toHaveLength(1)
+    expect(editorStore.document.metadata.name).toBe('replacement')
     expect(historyStore.currentSnapshot?.pixels).toEqual(editorStore.document.pixels)
     expect(storage.getItem(DRAFT_STORAGE_KEY)).toContain('"pixels":["","#abcdef88","#010203ff",""]')
   })

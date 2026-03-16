@@ -13,7 +13,7 @@ import { useEditorStore } from '../src/stores/editor'
 
 function createKeyboardEvent(
   key: string,
-  options: Partial<KeyboardEvent> & { target?: EventTarget | null } = {},
+  options: Partial<KeyboardEvent> & { repeat?: boolean; target?: EventTarget | null } = {},
 ) {
   return {
     altKey: false,
@@ -21,6 +21,7 @@ function createKeyboardEvent(
     key,
     metaKey: false,
     preventDefault: vi.fn(),
+    repeat: false,
     shiftKey: false,
     target: null,
     ...options,
@@ -156,5 +157,41 @@ describe('createKeyboardShortcutHandler', () => {
     expect(exportSvg).not.toHaveBeenCalled()
     expect(importDocument).not.toHaveBeenCalled()
     expect(redoAliasEvent.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('ignores repeated one-shot shortcuts but keeps repeatable zoom and brush steps', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const exportJson = vi.fn()
+    const exportSvg = vi.fn()
+    const importDocument = vi.fn()
+    const handler = createKeyboardShortcutHandler({
+      exportJson,
+      exportSvg,
+      importDocument,
+    })
+
+    const initialFg = colorStore.fg
+    const initialBg = colorStore.bg
+
+    handler(createKeyboardEvent('x', { repeat: true }))
+    expect(colorStore.fg).toBe(initialFg)
+    expect(colorStore.bg).toBe(initialBg)
+
+    handler(createKeyboardEvent('g', { repeat: true }))
+    expect(editorStore.gridVisible).toBe(true)
+
+    handler(createKeyboardEvent('s', { ctrlKey: true, repeat: true }))
+    handler(createKeyboardEvent('s', { ctrlKey: true, shiftKey: true, repeat: true }))
+    handler(createKeyboardEvent('o', { metaKey: true, repeat: true }))
+    expect(exportJson).not.toHaveBeenCalled()
+    expect(exportSvg).not.toHaveBeenCalled()
+    expect(importDocument).not.toHaveBeenCalled()
+
+    handler(createKeyboardEvent(']', { repeat: true }))
+    expect(editorStore.brushSize).toBe(2)
+
+    handler(createKeyboardEvent('+', { repeat: true }))
+    expect(editorStore.zoom).toBe(2)
   })
 })

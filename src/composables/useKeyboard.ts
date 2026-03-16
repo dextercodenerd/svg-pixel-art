@@ -30,6 +30,14 @@ function hasCommandModifier(event: KeyboardEvent): boolean {
   return event.ctrlKey || event.metaKey
 }
 
+function isRepeatableShortcut(key: string, commandModifier: boolean): boolean {
+  if (commandModifier) {
+    return false
+  }
+
+  return key === '[' || key === ']' || key === '+' || key === '=' || key === '-' || key === '_'
+}
+
 function stepBrushSize(current: BrushSize, direction: -1 | 1): BrushSize {
   const currentIndex = BRUSH_SIZES.indexOf(current)
   const nextIndex = Math.min(BRUSH_SIZES.length - 1, Math.max(0, currentIndex + direction))
@@ -53,6 +61,9 @@ export function createKeyboardShortcutHandler(actions: KeyboardShortcutActions) 
 
     const key = normalizeKey(event.key)
     const commandModifier = hasCommandModifier(event)
+    if (event.repeat && !isRepeatableShortcut(key, commandModifier)) {
+      return
+    }
 
     if (!commandModifier && !event.altKey) {
       if (key === 'p' || key === 'e' || key === 'l' || key === 'f' || key === 'i') {

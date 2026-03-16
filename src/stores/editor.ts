@@ -33,12 +33,18 @@ export const useEditorStore = defineStore('editor', () => {
 
   function applyDocumentLifecycle(
     nextDocument: EditorDocument,
-    options?: { persistDraft?: boolean },
+    options?: { owned?: boolean; persistDraft?: boolean },
   ) {
+    const historyStore = useHistoryStore()
+
     document.value = nextDocument
     isInitialState.value = false
     resetViewState()
-    useHistoryStore().resetWith(nextDocument)
+    if (options?.owned === true) {
+      historyStore.resetWithOwned(nextDocument)
+    } else {
+      historyStore.resetWith(nextDocument)
+    }
 
     if (options?.persistDraft === true) {
       saveDraft(nextDocument)
@@ -64,7 +70,10 @@ export const useEditorStore = defineStore('editor', () => {
       name: options?.name,
     })
 
-    applyDocumentLifecycle(nextDocument, { persistDraft: options?.persistDraft })
+    applyDocumentLifecycle(nextDocument, {
+      owned: true,
+      persistDraft: options?.persistDraft,
+    })
   }
 
   function replaceDocument(nextDocument: EditorDocument, options?: { persistDraft?: boolean }) {
@@ -72,7 +81,10 @@ export const useEditorStore = defineStore('editor', () => {
     validatePixelBuffer(nextDocument)
 
     const normalized = normalizeDocumentPixels(nextDocument)
-    applyDocumentLifecycle(normalized, options)
+    applyDocumentLifecycle(normalized, {
+      owned: true,
+      persistDraft: options?.persistDraft,
+    })
   }
 
   function loadDocument(nextDocument: EditorDocument) {
@@ -96,7 +108,7 @@ export const useEditorStore = defineStore('editor', () => {
       },
     }
     document.value = renamed
-    useHistoryStore().push(renamed)
+    useHistoryStore().pushOwned(renamed)
   }
 
   function setPixels(pixels: string[]) {
@@ -121,7 +133,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     document.value = next
-    useHistoryStore().push(next)
+    useHistoryStore().pushOwned(next)
   }
 
   function setTool(tool: ToolId) {
