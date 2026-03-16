@@ -27,6 +27,29 @@ describe('history store', () => {
     expect(historyStore.currentSnapshot?.pixels[0]).toBe('#11223344')
   })
 
+  it('stores owned reset snapshots by reference but keeps undo and redo isolated on read', () => {
+    const historyStore = useHistoryStore()
+    const base = createEditorDocument({ name: 'owned-base' })
+    const next = createEditorDocument({ name: 'owned-next' })
+
+    historyStore.resetWithOwned(base)
+    base.metadata.name = 'owned-base-mutated'
+    expect(historyStore.currentSnapshot?.metadata.name).toBe('owned-base-mutated')
+
+    historyStore.pushOwned(next)
+    next.metadata.name = 'owned-next-mutated'
+    expect(historyStore.currentSnapshot?.metadata.name).toBe('owned-next-mutated')
+
+    const undone = historyStore.undo()!
+    const redone = historyStore.redo()!
+
+    undone.metadata.name = 'mutated-undo'
+    redone.metadata.name = 'mutated-redo'
+
+    expect(historyStore.snapshots[0]?.metadata.name).toBe('owned-base-mutated')
+    expect(historyStore.snapshots[1]?.metadata.name).toBe('owned-next-mutated')
+  })
+
   it('discards the redo branch when pushing after undo', () => {
     const historyStore = useHistoryStore()
 

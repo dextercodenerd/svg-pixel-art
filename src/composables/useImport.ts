@@ -6,13 +6,42 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 import { ref } from 'vue'
-import { confirmImportReplacement } from '../services/documentConfirmations'
+import { requestConfirmation } from '../services/confirmationService'
 import { parseJsonDocument, pngToDocument } from '../services/importService'
 import { useEditorStore } from '../stores/editor'
 import type { ComponentPublicInstance } from 'vue'
 
-export function useImport() {
-  const editorStore = useEditorStore()
+interface FileInputLike {
+  click?: () => void
+  files?: FileList | null
+  value: string
+}
+
+interface ImportControllerOptions {
+  onImportSuccess?: () => void
+  parseJson?: typeof parseJsonDocument
+  parsePng?: typeof pngToDocument
+  replaceDocument?: ReturnType<typeof useEditorStore>['replaceDocument']
+  requestReplacementConfirmation?: () => Promise<boolean>
+}
+
+function isFileInputElement(value: unknown): value is FileInputLike {
+  return value != null && typeof value === 'object' && 'value' in value
+}
+
+export function createImportController(options: ImportControllerOptions = {}) {
+  const parseJson = options.parseJson ?? parseJsonDocument
+  const parsePng = options.parsePng ?? pngToDocument
+  const replaceDocument = options.replaceDocument
+  const requestReplacementConfirmation =
+    options.requestReplacementConfirmation ??
+    (() =>
+      requestConfirmation({
+        title: 'Replace current document?',
+        message: 'Importing will replace the current draft.',
+        confirmLabel: 'Import file',
+        cancelLabel: 'Keep current',
+      }))
 
   const fileInputRef = ref<HTMLInputElement | null>(null)
   const importError = ref<string | null>(null)
@@ -22,11 +51,11 @@ export function useImport() {
     const name = file.name.toLowerCase()
 
     if (name.endsWith('.json')) {
-      return parseJsonDocument(await file.text())
+      return parseJson(await file.text())
     }
 
     if (name.endsWith('.png')) {
-      return pngToDocument(file)
+      return parsePng(file)
     }
 
     throw new Error('Only .json and .png files are supported.')
@@ -35,7 +64,8 @@ export function useImport() {
   async function importFile(file: File) {
     importError.value = null
 
-    if (!confirmImportReplacement()) {
+    const confirmed = await requestReplacementConfirmation()
+    if (!confirmed || replaceDocument == null) {
       return
     }
 
@@ -43,7 +73,8 @@ export function useImport() {
 
     try {
       const document = await parseFile(file)
-      editorStore.replaceDocument(document, { persistDraft: true })
+      replaceDocument(document, { persistDraft: true })
+      options.onImportSuccess?.()
     } catch (error) {
       importError.value =
         error instanceof Error ? error.message : 'Unable to import the selected file.'
@@ -59,7 +90,7 @@ export function useImport() {
 
   function onFileChange(event: Event) {
     const input = event.target
-    if (!(input instanceof HTMLInputElement)) {
+    if (!isFileInputElement(input)) {
       return
     }
 
@@ -74,14 +105,26 @@ export function useImport() {
   }
 
   function setFileInputElement(element: Element | ComponentPublicInstance | null) {
-    fileInputRef.value = element instanceof HTMLInputElement ? element : null
+    fileInputRef.value = isFileInputElement(element) ? (element as HTMLInputElement) : null
   }
 
   return {
+    fileInputRef,
     importError,
     isImporting,
+    importFile,
     onFileChange,
+    parseFile,
     setFileInputElement,
     triggerImport,
   }
+}
+
+export function useImport(options: Pick<ImportControllerOptions, 'onImportSuccess'> = {}) {
+  const editorStore = useEditorStore()
+
+  return createImportController({
+    ...options,
+    replaceDocument: editorStore.replaceDocument,
+  })
 }

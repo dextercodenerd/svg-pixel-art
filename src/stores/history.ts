@@ -19,7 +19,11 @@ export const useHistoryStore = defineStore('history', () => {
   const currentSnapshot = computed(() => snapshots.value[index.value] ?? null)
 
   function resetWith(document: EditorDocument) {
-    snapshots.value = [cloneDocument(document)]
+    resetWithOwned(cloneDocument(document))
+  }
+
+  function resetWithOwned(document: EditorDocument) {
+    snapshots.value = [document]
     index.value = 0
   }
 
@@ -76,6 +80,7 @@ export const useHistoryStore = defineStore('history', () => {
     canRedo,
     currentSnapshot,
     resetWith,
+    resetWithOwned,
     push,
     pushOwned,
     undo,
