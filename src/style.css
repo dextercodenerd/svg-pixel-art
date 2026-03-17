@@ -876,8 +876,8 @@ select {
 
 /* Fallback for non-WebKit browsers */
 .custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--panel) var(--panel-inner);
+  scrollbar-width: auto;
+  scrollbar-color: var(--app-bg-accent) var(--panel-inner);
 }
 
 .validation-error-card {
