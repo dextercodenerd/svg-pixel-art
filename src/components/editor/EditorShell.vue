@@ -240,16 +240,6 @@ onMounted(() => {
 
       <aside class="panel order-3 flex flex-col gap-6 p-4 md:p-5 overflow-y-auto overflow-x-hidden">
         <div>
-          <p class="eyebrow">Colors & Tools</p>
-          <div class="mt-4 grid gap-3">
-            <BrushSizePicker />
-            <FgBgDisplay />
-            <ActiveColorSlotToggle />
-            <PalettePanel />
-          </div>
-        </div>
-
-        <div>
           <p class="eyebrow">Document</p>
           <div class="mt-4">
             <DocumentActions
@@ -273,6 +263,16 @@ onMounted(() => {
               <strong class="status-value">{{ zoom }}x / {{ effectivePixelSize }}px</strong>
               <span class="status-detail">Grid {{ gridVisible ? 'visible' : 'hidden' }}</span>
             </div>
+          </div>
+        </div>
+
+        <div>
+          <p class="eyebrow">Colors & Tools</p>
+          <div class="mt-4 grid gap-3">
+            <BrushSizePicker />
+            <FgBgDisplay />
+            <ActiveColorSlotToggle />
+            <PalettePanel />
           </div>
         </div>
       </aside>

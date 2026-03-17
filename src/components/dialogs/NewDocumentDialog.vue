@@ -192,7 +192,7 @@ watch(
             </div>
 
             <div
-              class="flex flex-wrap items-center gap-3 rounded-[20px] border border-[var(--panel-border)] bg-[rgba(255,255,255,0.35)] p-3"
+              class="flex flex-wrap items-center gap-3 border-2 border-[var(--panel-border)] bg-[rgba(255,255,255,0.35)] p-3"
             >
               <ColorPicker
                 title="Document fill color"
@@ -240,7 +240,7 @@ watch(
 
           <p
             v-if="controller.validationError.value != null"
-            class="rounded-[18px] border border-[rgba(177,66,44,0.25)] bg-[rgba(177,66,44,0.08)] px-3 py-2 text-sm text-[rgb(128,46,29)]"
+            class="border-2 border-[rgba(177,66,44,0.25)] bg-[rgba(177,66,44,0.08)] px-3 py-2 text-sm text-[rgb(128,46,29)]"
           >
             {{ controller.validationError.value }}
           </p>

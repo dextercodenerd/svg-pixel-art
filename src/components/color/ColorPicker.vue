@@ -80,7 +80,7 @@ async function onOpenAutoFocus(event: Event) {
               {{ description }}
             </p>
           </div>
-          <div class="checkerboard-surface color-preview-frame size-14 shrink-0 rounded-[18px]">
+          <div class="checkerboard-surface color-preview-frame size-14 shrink-0 border-t-2 border-l-2 border-white border-r-black border-b-black">
             <div class="color-preview-fill" :style="previewStyle" />
           </div>
         </div>

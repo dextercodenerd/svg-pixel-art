@@ -82,19 +82,12 @@ function requestExportSvg() {
 </script>
 
 <template>
-  <section class="rounded-[24px] border border-[var(--panel-border)] bg-[var(--panel-inner)] p-4">
+  <section class="status-card">
     <div class="flex items-start justify-between gap-3">
       <div>
-        <p class="status-label">Document actions</p>
-        <p class="mt-2 text-sm text-[var(--ink-soft)]">
-          Import, export, and keep the draft synced locally.
-        </p>
+        <span class="status-label">Info</span>
+        <strong class="status-value block mt-1">{{ documentDimensions }}</strong>
       </div>
-      <span
-        class="rounded-full bg-[rgba(255,255,255,0.5)] px-3 py-1 text-xs font-bold text-[var(--ink-muted)]"
-      >
-        {{ documentDimensions }}
-      </span>
     </div>
 
     <label class="mt-4 block">
@@ -146,7 +139,7 @@ function requestExportSvg() {
       <TooltipRoot>
         <TooltipTrigger as-child>
           <button type="button" class="editor-button w-full" @click="requestExportJson()">
-            Export JSON
+            Save JSON
           </button>
         </TooltipTrigger>
         <TooltipPortal>
@@ -172,10 +165,10 @@ function requestExportSvg() {
 
     <p
       v-if="noticeMessage != null"
-      class="mt-3 rounded-[18px] border border-[var(--panel-border)] bg-[rgba(255,255,255,0.45)] px-3 py-2 text-sm text-[var(--ink-soft)]"
+      class="mt-3 border-2 border-dashed border-[var(--panel-border)] p-3 text-sm"
       :class="{
-        'border-[rgba(177,66,44,0.25)] bg-[rgba(177,66,44,0.08)] text-[rgb(128,46,29)]':
-          importError != null,
+        'border-red-500 bg-red-50 text-red-900': importError != null,
+        'bg-white text-[var(--ink-soft)]': importError == null
       }"
     >
       {{ noticeMessage }}

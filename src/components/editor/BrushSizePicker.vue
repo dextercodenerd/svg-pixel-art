@@ -42,14 +42,13 @@ const brushLabel = computed(() => `${brushSize.value} x ${brushSize.value}`)
         :aria-label="`${size} by ${size} brush`"
         @click="editorStore.setBrushSize(size)"
       >
-        <svg viewBox="0 0 18 18" class="brush-icon" aria-hidden="true">
-          <rect width="18" height="18" rx="4" fill="rgba(255,255,255,0.48)" />
+        <svg viewBox="0 0 18 18" class="brush-icon" aria-hidden="true" style="shape-rendering: crispEdges;">
+          <rect width="18" height="18" fill="rgba(255,255,255,0.48)" />
           <rect
             :x="getPreviewBox(size).offset"
             :y="getPreviewBox(size).offset"
             :width="getPreviewBox(size).size"
             :height="getPreviewBox(size).size"
-            rx="1.5"
             fill="currentColor"
           />
         </svg>
