@@ -1529,7 +1529,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vueuse/core@npm:^14.1.0":
+"@vueuse/core@npm:14.2.1, @vueuse/core@npm:^14.1.0":
   version: 14.2.1
   resolution: "@vueuse/core@npm:14.2.1"
   dependencies:
@@ -3633,6 +3633,7 @@ __metadata:
     "@vitejs/plugin-vue": "npm:6.0.5"
     "@vue/test-utils": "npm:2.4.6"
     "@vue/tsconfig": "npm:0.9.0"
+    "@vueuse/core": "npm:14.2.1"
     eslint: "npm:10.0.3"
     eslint-config-prettier: "npm:10.1.8"
     eslint-plugin-vue: "npm:10.8.0"

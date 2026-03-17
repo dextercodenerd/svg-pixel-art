@@ -5,8 +5,8 @@
  * This source code is licensed under the GNU Affero General Public License v3.0
  * found in the LICENSE file in the root directory of this source tree.
  */
-import { onBeforeUnmount, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useEventListener } from '@vueuse/core'
 import { useColorStore } from '../stores/color'
 import { useEditorStore } from '../stores/editor'
 import { useZoom } from './useZoom'
@@ -161,11 +161,5 @@ export function createKeyboardShortcutHandler(actions: KeyboardShortcutActions) 
 export function useKeyboard(actions: KeyboardShortcutActions) {
   const onWindowKeyDown = createKeyboardShortcutHandler(actions)
 
-  onMounted(() => {
-    window.addEventListener('keydown', onWindowKeyDown)
-  })
-
-  onBeforeUnmount(() => {
-    window.removeEventListener('keydown', onWindowKeyDown)
-  })
+  useEventListener(window, 'keydown', onWindowKeyDown)
 }

@@ -7,7 +7,8 @@
 -->
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useEventListener, useResizeObserver } from '@vueuse/core'
 import PixelCanvas from './PixelCanvas.vue'
 import { useCanvasPointer } from '../../composables/useCanvasPointer'
 import { usePan } from '../../composables/usePan'
@@ -213,50 +214,27 @@ function onWindowBlur() {
   touchViewport.cancelGesture()
 }
 
-let resizeObserver: ResizeObserver | null = null
+useEventListener(window, 'mousemove', onWindowMouseMove)
+useEventListener(window, 'mouseup', onWindowMouseUp)
+useEventListener(window, 'keydown', onWindowKeyDown)
+useEventListener(window, 'keyup', onWindowKeyUp)
+useEventListener(window, 'blur', onWindowBlur)
 
-onMounted(() => {
-  window.addEventListener('mousemove', onWindowMouseMove)
-  window.addEventListener('mouseup', onWindowMouseUp)
-  window.addEventListener('keydown', onWindowKeyDown)
-  window.addEventListener('keyup', onWindowKeyUp)
-  window.addEventListener('blur', onWindowBlur)
-
-  if (viewportRef.value != null) {
-    resizeObserver = new ResizeObserver(() => {
-      clampCurrentPan()
-    })
-    resizeObserver.observe(viewportRef.value)
-
-    // Touch and wheel listeners must be non-passive so we can call preventDefault().
-    // Vue's template event bindings may register them as passive in some browsers,
-    // so we add them manually here to guarantee the flag.
-    viewportRef.value.addEventListener('touchstart', onViewportTouchStart, { passive: false })
-    viewportRef.value.addEventListener('touchmove', onViewportTouchMove, { passive: false })
-    viewportRef.value.addEventListener('touchend', onViewportTouchEnd, { passive: false })
-    viewportRef.value.addEventListener('touchcancel', onViewportTouchEnd, { passive: false })
-    viewportRef.value.addEventListener('wheel', onViewportWheel, { passive: false })
-  }
-
-  resetForDocumentBounds()
+useResizeObserver(viewportRef, () => {
+  clampCurrentPan()
 })
 
-onBeforeUnmount(() => {
-  window.removeEventListener('mousemove', onWindowMouseMove)
-  window.removeEventListener('mouseup', onWindowMouseUp)
-  window.removeEventListener('keydown', onWindowKeyDown)
-  window.removeEventListener('keyup', onWindowKeyUp)
-  window.removeEventListener('blur', onWindowBlur)
+// Touch and wheel listeners must be non-passive so we can call preventDefault().
+// Vue's template event bindings may register them as passive in some browsers,
+// so we add them manually here to guarantee the flag.
+useEventListener(viewportRef, 'touchstart', onViewportTouchStart, { passive: false })
+useEventListener(viewportRef, 'touchmove', onViewportTouchMove, { passive: false })
+useEventListener(viewportRef, 'touchend', onViewportTouchEnd, { passive: false })
+useEventListener(viewportRef, 'touchcancel', onViewportTouchEnd, { passive: false })
+useEventListener(viewportRef, 'wheel', onViewportWheel, { passive: false })
 
-  if (viewportRef.value != null) {
-    viewportRef.value.removeEventListener('touchstart', onViewportTouchStart)
-    viewportRef.value.removeEventListener('touchmove', onViewportTouchMove)
-    viewportRef.value.removeEventListener('touchend', onViewportTouchEnd)
-    viewportRef.value.removeEventListener('touchcancel', onViewportTouchEnd)
-    viewportRef.value.removeEventListener('wheel', onViewportWheel)
-  }
-
-  resizeObserver?.disconnect()
+onMounted(() => {
+  resetForDocumentBounds()
 })
 
 watch([() => document.value.width, () => document.value.height], () => {
