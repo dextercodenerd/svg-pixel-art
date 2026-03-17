@@ -20,6 +20,8 @@
   --panel-inner: #f0f4f4;
   --panel-border: #222222;
   --panel-border-strong: #000000;
+  --error-strong: #c92a2a; /* Strong error/border color */
+  --error-soft: #f58787; /* Soft error background/text */
   --ink-strong: #222222;
   --ink-soft: #3a3a3a;
   --ink-muted: #666666;
@@ -822,6 +824,7 @@ select {
 .dialog-color-trigger:disabled {
   cursor: not-allowed;
   opacity: 0.48;
+  filter: grayscale(0.6);
 }
 
 @media (max-width: 640px) {
@@ -843,30 +846,49 @@ select {
 }
 
 /* Custom Pixel Art Scrollbars */
-::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar {
   width: 14px;
   height: 14px;
 }
 
-::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: var(--panel-inner);
   border-left: 1px solid var(--panel-border);
   border-top: 1px solid var(--panel-border);
 }
 
-::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--panel);
   border: 1px solid var(--panel-border);
   cursor: pointer;
 }
 
-::-webkit-scrollbar-thumb:hover,
-::-webkit-scrollbar-thumb:active {
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
   background: var(--app-bg-accent);
 }
 
-::-webkit-scrollbar-corner {
+.custom-scrollbar::-webkit-scrollbar-corner {
   background: var(--panel-inner);
   border-left: 1px solid var(--panel-border);
   border-top: 1px solid var(--panel-border);
+}
+
+/* Fallback for non-WebKit browsers */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--panel) var(--panel-inner);
+}
+
+.validation-error-card {
+  border-top: 2px solid var(--error-strong);
+  border-left: 2px solid var(--error-strong);
+  border-right: 2px solid var(--error-soft);
+  border-bottom: 2px solid var(--error-soft);
+
+  background: var(--error-soft);
+  color: #2a1510;
+  font-size: 0.72rem;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
 }

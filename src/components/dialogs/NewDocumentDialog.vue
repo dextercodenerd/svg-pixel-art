@@ -34,9 +34,13 @@ const emit = defineEmits<{
 }>()
 
 const editorStore = useEditorStore()
-const preserveStateOnNextOpen = ref(false)
+// The replacement confirmation temporarily closes this dialog; skip the usual reset for that close.
+const shouldSkipResetOnNextClose = ref(false)
+// If the user cancels replacement, reopen the dialog with their in-progress values intact.
+const shouldPreserveStateOnNextOpen = ref(false)
 const controller = createNewDocumentController({
   async confirmReplacement(payload) {
+    shouldSkipResetOnNextClose.value = true
     emit('update:open', false)
 
     const confirmed = await requestConfirmation({
@@ -47,7 +51,7 @@ const controller = createNewDocumentController({
     })
 
     if (!confirmed) {
-      preserveStateOnNextOpen.value = true
+      shouldPreserveStateOnNextOpen.value = true
       emit('update:open', true)
     }
 
@@ -67,10 +71,6 @@ const fillPreviewStyle = computed(() => ({
 
 function onOpenChange(nextOpen: boolean) {
   emit('update:open', nextOpen)
-
-  if (!nextOpen) {
-    controller.reset(props.initialFillColor)
-  }
 }
 
 function onPresetChange(nextPreset: unknown) {
@@ -94,13 +94,21 @@ watch(
   () => props.open,
   nextOpen => {
     if (nextOpen) {
-      if (preserveStateOnNextOpen.value) {
-        preserveStateOnNextOpen.value = false
+      if (shouldPreserveStateOnNextOpen.value) {
+        shouldPreserveStateOnNextOpen.value = false
         return
       }
 
       controller.reset(props.initialFillColor)
+      return
     }
+
+    if (shouldSkipResetOnNextClose.value) {
+      shouldSkipResetOnNextClose.value = false
+      return
+    }
+
+    controller.reset(props.initialFillColor)
   },
 )
 </script>
@@ -185,7 +193,9 @@ watch(
               </button>
             </div>
 
-            <div class="mt-3 flex items-center gap-4 bg-[rgba(255,255,255,0.2)] p-2 border-2 border-dashed border-[var(--panel-border)]">
+            <div
+              class="mt-3 flex items-center gap-4 bg-[rgba(255,255,255,0.2)] p-2 border-2 border-dashed border-[var(--panel-border)]"
+            >
               <ColorPicker
                 title="Fill color"
                 :model-value="controller.normalizedFillColor.value ?? props.initialFillColor"
@@ -204,7 +214,7 @@ watch(
                   {{
                     controller.fillMode.value === 'transparent'
                       ? 'No background'
-                      : controller.normalizedFillColor.value ?? props.initialFillColor
+                      : (controller.normalizedFillColor.value ?? props.initialFillColor)
                   }}
                 </p>
                 <p class="mt-1 text-[10px] text-[var(--ink-soft)] leading-tight">
@@ -231,10 +241,7 @@ watch(
             </label>
           </section>
 
-          <p
-            v-if="controller.validationError.value != null"
-            class="border-2 border-red-500 bg-red-50 p-2 text-xs text-red-700 font-bold"
-          >
+          <p v-if="controller.validationError.value != null" class="validation-error-card">
             {{ controller.validationError.value }}
           </p>
         </div>

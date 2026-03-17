@@ -133,7 +133,7 @@ onMounted(() => {
       class="grid h-full w-full gap-2 md:grid-cols-[68px_minmax(0,1fr)_300px] md:gap-3 overflow-hidden"
     >
       <aside
-        class="panel order-1 flex flex-col items-center p-3 md:p-4 overflow-y-auto overflow-x-hidden"
+        class="panel custom-scrollbar order-1 flex flex-col items-center overflow-y-auto overflow-x-hidden p-3 md:p-4"
       >
         <ToolBar />
       </aside>
@@ -238,7 +238,9 @@ onMounted(() => {
         <StatusBar :cursor-col="cursorCol" :cursor-row="cursorRow" />
       </main>
 
-      <aside class="panel order-3 flex flex-col gap-6 p-4 md:p-5 overflow-y-auto overflow-x-hidden">
+      <aside
+        class="panel custom-scrollbar order-3 flex flex-col gap-6 overflow-y-auto overflow-x-hidden p-4 md:p-5"
+      >
         <div>
           <p class="eyebrow">Document</p>
           <div class="mt-4">

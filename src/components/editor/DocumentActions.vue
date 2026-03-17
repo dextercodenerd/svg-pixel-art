@@ -168,7 +168,7 @@ function requestExportSvg() {
       class="mt-3 border-2 border-dashed border-[var(--panel-border)] p-3 text-sm"
       :class="{
         'border-red-500 bg-red-50 text-red-900': importError != null,
-        'bg-white text-[var(--ink-soft)]': importError == null
+        'bg-white text-[var(--ink-soft)]': importError == null,
       }"
     >
       {{ noticeMessage }}

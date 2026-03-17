@@ -265,7 +265,7 @@ watch(
 <template>
   <div
     ref="viewportRef"
-    class="canvas-viewport relative min-h-[320px] flex-1 overflow-auto border-t-2 border-l-2 border-r-2 border-b-2 border-white border-r-[var(--panel-border-strong)] border-b-[var(--panel-border-strong)] bg-[rgba(120,88,56,0.08)]"
+    class="canvas-viewport custom-scrollbar relative min-h-[320px] flex-1 overflow-auto border-t-2 border-l-2 border-r-2 border-b-2 border-white border-r-[var(--panel-border-strong)] border-b-[var(--panel-border-strong)] bg-[rgba(120,88,56,0.08)]"
     :data-cursor-mode="viewportCursorMode"
     @auxclick.prevent
     @contextmenu.prevent
