@@ -9,26 +9,20 @@
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import {
-  TooltipContent,
-  TooltipPortal,
   TooltipProvider,
-  TooltipRoot,
-  TooltipTrigger,
 } from 'reka-ui'
 import FgBgDisplay from '../color/FgBgDisplay.vue'
 import PalettePanel from '../color/PalettePanel.vue'
 import ConfirmDialog from '../dialogs/ConfirmDialog.vue'
 import NewDocumentDialog from '../dialogs/NewDocumentDialog.vue'
-import BrushSizePicker from './BrushSizePicker.vue'
 import CanvasViewport from './CanvasViewport.vue'
-import DocumentActions from './DocumentActions.vue'
 import StatusBar from './StatusBar.vue'
 import ToolBar from './ToolBar.vue'
+import TopToolbar from './TopToolbar.vue'
 import { useAutoSave } from '../../composables/useAutoSave'
 import { useDocumentExport } from '../../composables/useDocumentExport'
 import { useImport } from '../../composables/useImport'
 import { useKeyboard } from '../../composables/useKeyboard'
-import { useZoom } from '../../composables/useZoom'
 import { loadDraft } from '../../services/draftStorage'
 import { useConfirmationDialog } from '../../services/confirmationService'
 import { useColorStore } from '../../stores/color'
@@ -42,7 +36,6 @@ const colorStore = useColorStore()
 const { document, gridVisible, zoom } = storeToRefs(editorStore)
 const { fg } = storeToRefs(colorStore)
 const { canRedo, canUndo } = storeToRefs(useHistoryStore())
-const { resetZoom, zoomIn, zoomOut } = useZoom()
 const autoSaveEnabled = ref(false)
 const confirmationDialog = useConfirmationDialog()
 
@@ -128,115 +121,35 @@ onMounted(() => {
 
 <template>
   <TooltipProvider :delay-duration="120">
-    <section
-      class="grid h-full w-full gap-2 md:grid-cols-[68px_minmax(0,1fr)_300px] md:gap-3 overflow-hidden"
-    >
+    <div class="flex h-full w-full flex-col overflow-hidden">
+      <TopToolbar
+        :import-error="importError"
+        :is-importing="isImporting"
+        :status-message="actionMessage"
+        @export-json="onExportJson"
+        @export-svg="onExportSvg"
+        @import="onImport"
+        @new="openNewDocumentDialog"
+      />
+      <section
+        class="grid flex-1 w-full gap-2 md:grid-cols-[68px_minmax(0,1fr)_300px] md:gap-3 overflow-hidden p-2 md:p-3"
+      >
       <aside
         class="panel custom-scrollbar order-1 flex flex-col items-center overflow-y-auto overflow-x-hidden p-0.5 md:p-1"
       >
         <ToolBar />
         <div class="mt-4 w-full flex flex-col items-center gap-2">
           <FgBgDisplay compact />
-          
-          <!-- Sidebar Actions Stacked -->
-          <div class="mt-2 flex flex-col gap-1 w-full items-center">
-            <TooltipRoot>
-              <TooltipTrigger as-child>
-                <button
-                  type="button"
-                  class="sidebar-action-button"
-                  :disabled="!canUndo"
-                  @click="editorStore.applyUndo()"
-                >
-                  <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
-                    <path d="M4 4h8v2l4-3-4-3v2H2v6h2V4z" />
-                  </svg>
-                </button>
-              </TooltipTrigger>
-              <TooltipPortal>
-                <TooltipContent side="right" :side-offset="10" class="editor-tooltip">
-                  Undo · Ctrl+Z
-                </TooltipContent>
-              </TooltipPortal>
-            </TooltipRoot>
-
-            <TooltipRoot>
-              <TooltipTrigger as-child>
-                <button
-                  type="button"
-                  class="sidebar-action-button"
-                  :disabled="!canRedo"
-                  @click="editorStore.applyRedo()"
-                >
-                  <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
-                    <path d="M12 12H4v-2l-4 3 4 3v-2h10V8h-2v4z" />
-                  </svg>
-                </button>
-              </TooltipTrigger>
-              <TooltipPortal>
-                <TooltipContent side="right" :side-offset="10" class="editor-tooltip">
-                  Redo · Ctrl+Shift+Z
-                </TooltipContent>
-              </TooltipPortal>
-            </TooltipRoot>
-          </div>
         </div>
       </aside>
 
       <main
         class="panel order-2 flex min-h-[300px] min-w-0 flex-col overflow-hidden bg-[var(--app-bg)] bg-opacity-30"
       >
-        <header class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+        <header class="px-4 py-4">
           <div>
             <p class="eyebrow">Viewport</p>
             <h2 class="mt-2 text-xl font-semibold tracking-tight">Canvas workspace</h2>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <TooltipRoot>
-              <TooltipTrigger as-child>
-                <button type="button" class="editor-button" @click="zoomOut()">-</button>
-              </TooltipTrigger>
-              <TooltipPortal>
-                <TooltipContent side="top" :side-offset="10" class="editor-tooltip">
-                  Zoom out · -
-                </TooltipContent>
-              </TooltipPortal>
-            </TooltipRoot>
-
-            <TooltipRoot>
-              <TooltipTrigger as-child>
-                <button type="button" class="editor-button" @click="resetZoom()">1x</button>
-              </TooltipTrigger>
-              <TooltipPortal>
-                <TooltipContent side="top" :side-offset="10" class="editor-tooltip">
-                  Reset zoom · 0
-                </TooltipContent>
-              </TooltipPortal>
-            </TooltipRoot>
-
-            <TooltipRoot>
-              <TooltipTrigger as-child>
-                <button type="button" class="editor-button" @click="zoomIn()">+</button>
-              </TooltipTrigger>
-              <TooltipPortal>
-                <TooltipContent side="top" :side-offset="10" class="editor-tooltip">
-                  Zoom in · +
-                </TooltipContent>
-              </TooltipPortal>
-            </TooltipRoot>
-
-            <TooltipRoot>
-              <TooltipTrigger as-child>
-                <button type="button" class="editor-button" @click="editorStore.toggleGrid()">
-                  Grid {{ gridVisible ? 'on' : 'off' }}
-                </button>
-              </TooltipTrigger>
-              <TooltipPortal>
-                <TooltipContent side="top" :side-offset="10" class="editor-tooltip">
-                  Toggle grid · G
-                </TooltipContent>
-              </TooltipPortal>
-            </TooltipRoot>
           </div>
         </header>
 
@@ -251,18 +164,7 @@ onMounted(() => {
         class="panel custom-scrollbar order-3 flex flex-col gap-6 overflow-y-auto overflow-x-hidden p-4 md:p-5"
       >
         <div>
-          <p class="eyebrow">Document</p>
-          <div class="mt-4">
-            <DocumentActions
-              :import-error="importError"
-              :is-importing="isImporting"
-              :status-message="actionMessage"
-              @export-json="onExportJson"
-              @export-svg="onExportSvg"
-              @import="onImport"
-              @new="openNewDocumentDialog"
-            />
-          </div>
+          <p class="eyebrow">Document Status</p>
           <div class="mt-4 space-y-3">
             <div class="status-card">
               <span class="status-label">History</span>
@@ -280,7 +182,6 @@ onMounted(() => {
         <div>
           <p class="eyebrow">Colors & Tools</p>
           <div class="mt-4 grid gap-3">
-            <BrushSizePicker />
             <PalettePanel />
           </div>
         </div>
@@ -302,5 +203,7 @@ onMounted(() => {
         @update:open="onNewDialogOpenChange"
       />
     </section>
+  </div>
   </TooltipProvider>
 </template>
+```
