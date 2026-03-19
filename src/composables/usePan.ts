@@ -65,8 +65,10 @@ export function usePan(options: UsePanOptions) {
     if (margin === 'strict') {
       // Content edges touch viewport edges minus VIEWPORT_GUTTER (or centered if smaller)
       // Check for scrollbar visibility to adjust margins asymmetrically
-      const vScroll = canvasSize.height + VIEWPORT_GUTTER * 2 > viewportSize.height ? SCROLLBAR_SIZE : 0
-      const hScroll = canvasSize.width + VIEWPORT_GUTTER * 2 > viewportSize.width ? SCROLLBAR_SIZE : 0
+      const vScroll =
+        canvasSize.height + VIEWPORT_GUTTER * 2 > viewportSize.height ? SCROLLBAR_SIZE : 0
+      const hScroll =
+        canvasSize.width + VIEWPORT_GUTTER * 2 > viewportSize.width ? SCROLLBAR_SIZE : 0
 
       if (canvasSize.width + VIEWPORT_GUTTER * 2 + vScroll > viewportSize.width) {
         minX = viewportSize.width - canvasSize.width - VIEWPORT_GUTTER - vScroll
@@ -133,7 +135,10 @@ export function usePan(options: UsePanOptions) {
     return centerIfFit(scaleMultiplier)
   }
 
-  function clampCurrentPan(scaleMultiplier = 1, margin: number | 'strict' = PAN_CLAMP_MARGIN): PanOffset {
+  function clampCurrentPan(
+    scaleMultiplier = 1,
+    margin: number | 'strict' = PAN_CLAMP_MARGIN,
+  ): PanOffset {
     return setPanClamped(panOffset.value, scaleMultiplier, margin)
   }
 

@@ -7,14 +7,8 @@
 -->
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import {
-} from 'vue'
-import {
-  TooltipContent,
-  TooltipPortal,
-  TooltipRoot,
-  TooltipTrigger,
-} from 'reka-ui'
+import {} from 'vue'
+import { TooltipContent, TooltipPortal, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { useEditorStore } from '../../stores/editor'
 import { BRUSH_SIZES } from '../../types'
 import type { BrushSize } from '../../types'
@@ -31,7 +25,6 @@ function getPreviewBox(size: BrushSize) {
     size: unitSize,
   }
 }
-
 </script>
 
 <template>

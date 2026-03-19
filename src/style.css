@@ -525,7 +525,7 @@ select {
 }
 
 .color-slot-back {
-  left: 1.0rem !important;
+  left: 1rem !important;
   top: 0.8rem !important;
   z-index: 1;
 }

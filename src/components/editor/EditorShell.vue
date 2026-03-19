@@ -8,9 +8,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import {
-  TooltipProvider,
-} from 'reka-ui'
+import { TooltipProvider } from 'reka-ui'
 import FgBgDisplay from '../color/FgBgDisplay.vue'
 import PalettePanel from '../color/PalettePanel.vue'
 import ConfirmDialog from '../dialogs/ConfirmDialog.vue'
@@ -134,76 +132,76 @@ onMounted(() => {
       <section
         class="grid flex-1 w-full gap-2 md:grid-cols-[68px_minmax(0,1fr)_300px] md:gap-3 overflow-hidden p-2 md:p-3"
       >
-      <aside
-        class="panel custom-scrollbar order-1 flex flex-col items-center overflow-y-auto overflow-x-hidden p-0.5 md:p-1"
-      >
-        <ToolBar />
-        <div class="mt-4 w-full flex flex-col items-center gap-2">
-          <FgBgDisplay compact />
-        </div>
-      </aside>
+        <aside
+          class="panel custom-scrollbar order-1 flex flex-col items-center overflow-y-auto overflow-x-hidden p-0.5 md:p-1"
+        >
+          <ToolBar />
+          <div class="mt-4 w-full flex flex-col items-center gap-2">
+            <FgBgDisplay compact />
+          </div>
+        </aside>
 
-      <main
-        class="panel order-2 flex min-h-[300px] min-w-0 flex-col overflow-hidden bg-[var(--app-bg)] bg-opacity-30"
-      >
-        <header class="px-4 py-4">
+        <main
+          class="panel order-2 flex min-h-[300px] min-w-0 flex-col overflow-hidden bg-[var(--app-bg)] bg-opacity-30"
+        >
+          <header class="px-4 py-4">
+            <div>
+              <p class="eyebrow">Viewport</p>
+              <h2 class="mt-2 text-xl font-semibold tracking-tight">Canvas workspace</h2>
+            </div>
+          </header>
+
+          <div class="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
+            <CanvasViewport class="flex-1" @cursor-change="onCursorChange" />
+          </div>
+
+          <StatusBar :cursor-col="cursorCol" :cursor-row="cursorRow" />
+        </main>
+
+        <aside
+          class="panel custom-scrollbar order-3 flex flex-col gap-6 overflow-y-auto overflow-x-hidden p-4 md:p-5"
+        >
           <div>
-            <p class="eyebrow">Viewport</p>
-            <h2 class="mt-2 text-xl font-semibold tracking-tight">Canvas workspace</h2>
-          </div>
-        </header>
-
-        <div class="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
-          <CanvasViewport class="flex-1" @cursor-change="onCursorChange" />
-        </div>
-
-        <StatusBar :cursor-col="cursorCol" :cursor-row="cursorRow" />
-      </main>
-
-      <aside
-        class="panel custom-scrollbar order-3 flex flex-col gap-6 overflow-y-auto overflow-x-hidden p-4 md:p-5"
-      >
-        <div>
-          <p class="eyebrow">Document Status</p>
-          <div class="mt-4 space-y-3">
-            <div class="status-card">
-              <span class="status-label">History</span>
-              <strong class="status-value">Undo {{ canUndo ? 'ready' : 'empty' }}</strong>
-              <span class="status-detail">Redo {{ canRedo ? 'ready' : 'empty' }}</span>
-            </div>
-            <div class="status-card">
-              <span class="status-label">Viewport</span>
-              <strong class="status-value">{{ zoom }}x / {{ effectivePixelSize }}px</strong>
-              <span class="status-detail">Grid {{ gridVisible ? 'visible' : 'hidden' }}</span>
+            <p class="eyebrow">Document Status</p>
+            <div class="mt-4 space-y-3">
+              <div class="status-card">
+                <span class="status-label">History</span>
+                <strong class="status-value">Undo {{ canUndo ? 'ready' : 'empty' }}</strong>
+                <span class="status-detail">Redo {{ canRedo ? 'ready' : 'empty' }}</span>
+              </div>
+              <div class="status-card">
+                <span class="status-label">Viewport</span>
+                <strong class="status-value">{{ zoom }}x / {{ effectivePixelSize }}px</strong>
+                <span class="status-detail">Grid {{ gridVisible ? 'visible' : 'hidden' }}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div>
-          <p class="eyebrow">Colors & Tools</p>
-          <div class="mt-4 grid gap-3">
-            <PalettePanel />
+          <div>
+            <p class="eyebrow">Colors & Tools</p>
+            <div class="mt-4 grid gap-3">
+              <PalettePanel />
+            </div>
           </div>
-        </div>
-      </aside>
+        </aside>
 
-      <input
-        :ref="setFileInputElement"
-        type="file"
-        accept=".json,.png"
-        class="hidden"
-        @change="onFileChange"
-      />
+        <input
+          :ref="setFileInputElement"
+          type="file"
+          accept=".json,.png"
+          class="hidden"
+          @change="onFileChange"
+        />
 
-      <ConfirmDialog />
-      <NewDocumentDialog
-        :open="isNewDocumentDialogOpen"
-        :initial-fill-color="fg"
-        @created="onNewDocumentCreated"
-        @update:open="onNewDialogOpenChange"
-      />
-    </section>
-  </div>
+        <ConfirmDialog />
+        <NewDocumentDialog
+          :open="isNewDocumentDialogOpen"
+          :initial-fill-color="fg"
+          @created="onNewDocumentCreated"
+          @update:open="onNewDialogOpenChange"
+        />
+      </section>
+    </div>
   </TooltipProvider>
 </template>
 ```

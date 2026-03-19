@@ -3,19 +3,22 @@
 import { computed, ref, onBeforeUnmount } from 'vue'
 import { SCROLLBAR_SIZE } from '../../types'
 
-const props = withDefaults(defineProps<{
-  orientation: 'horizontal' | 'vertical'
-  viewportSize: number
-  contentSize: number
-  offset: number
-  margin?: number
-  marginEnd?: number
-  stopAtCorner?: boolean
-}>(), {
-  margin: 0,
-  marginEnd: 0,
-  stopAtCorner: false
-})
+const props = withDefaults(
+  defineProps<{
+    orientation: 'horizontal' | 'vertical'
+    viewportSize: number
+    contentSize: number
+    offset: number
+    margin?: number
+    marginEnd?: number
+    stopAtCorner?: boolean
+  }>(),
+  {
+    margin: 0,
+    marginEnd: 0,
+    stopAtCorner: false,
+  },
+)
 
 const emit = defineEmits<{
   'update:offset': [value: number]
@@ -40,7 +43,7 @@ const thumbSize = computed(() => {
 
 const thumbPosition = computed(() => {
   const totalMargin = props.margin + props.marginEnd
-  const scrollableRange = (props.contentSize - props.viewportSize) + totalMargin
+  const scrollableRange = props.contentSize - props.viewportSize + totalMargin
   if (scrollableRange <= 0 || thumbSize.value === 0) {
     return 0
   }
@@ -52,11 +55,11 @@ const thumbPosition = computed(() => {
 
 function onMouseDown(event: MouseEvent) {
   if (thumbSize.value === 0) return
-  
+
   isDragging.value = true
   dragStartMousePos.value = props.orientation === 'horizontal' ? event.clientX : event.clientY
   dragStartOffset.value = props.offset
-  
+
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
   event.preventDefault()
@@ -67,16 +70,19 @@ function onMouseMove(event: MouseEvent) {
 
   const currentMousePos = props.orientation === 'horizontal' ? event.clientX : event.clientY
   const deltaPx = currentMousePos - dragStartMousePos.value
-  
+
   const totalMargin = props.margin + props.marginEnd
-  const scrollableRange = (props.contentSize - props.viewportSize) + totalMargin
+  const scrollableRange = props.contentSize - props.viewportSize + totalMargin
   const maxThumbPos = trackLength.value - thumbSize.value
-  
+
   // deltaOffset / scrollableRange = -deltaPx / maxThumbPos
   const deltaOffset = -(deltaPx / maxThumbPos) * scrollableRange
   const minOffset = props.margin - scrollableRange
-  const nextOffset = Math.max(minOffset, Math.min(props.margin, dragStartOffset.value + deltaOffset))
-  
+  const nextOffset = Math.max(
+    minOffset,
+    Math.min(props.margin, dragStartOffset.value + deltaOffset),
+  )
+
   emit('update:offset', nextOffset)
 }
 
@@ -91,17 +97,16 @@ function onTrackClick(event: MouseEvent) {
   // This is a common scrollbar behavior.
   const target = event.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
-  const clickPos = props.orientation === 'horizontal' 
-    ? event.clientX - rect.left 
-    : event.clientY - rect.top
-  
+  const clickPos =
+    props.orientation === 'horizontal' ? event.clientX - rect.left : event.clientY - rect.top
+
   const totalMargin = props.margin + props.marginEnd
-  const scrollableRange = (props.contentSize - props.viewportSize) + totalMargin
+  const scrollableRange = props.contentSize - props.viewportSize + totalMargin
   const maxThumbPos = trackLength.value - thumbSize.value
-  
+
   const targetThumbPos = clickPos - thumbSize.value / 2
   const ratio = Math.max(0, Math.min(1, targetThumbPos / maxThumbPos))
-  
+
   emit('update:offset', props.margin - ratio * scrollableRange)
 }
 
@@ -128,9 +133,10 @@ onBeforeUnmount(() => {
       :style="{
         width: orientation === 'horizontal' ? `${thumbSize}px` : undefined,
         height: orientation === 'vertical' ? `${thumbSize}px` : undefined,
-        transform: orientation === 'horizontal' 
-          ? `translateX(${thumbPosition}px)` 
-          : `translateY(${thumbPosition}px)`
+        transform:
+          orientation === 'horizontal'
+            ? `translateX(${thumbPosition}px)`
+            : `translateY(${thumbPosition}px)`,
       }"
       @mousedown.stop="onMouseDown"
     />
@@ -162,7 +168,7 @@ onBeforeUnmount(() => {
 
 /* When both are present, we need to leave a corner */
 .pixel-scrollbar.horizontal:last-child {
-    right: 0;
+  right: 0;
 }
 
 .pixel-scrollbar-thumb {

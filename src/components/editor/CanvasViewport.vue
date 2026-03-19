@@ -20,8 +20,12 @@ import { shouldHandleViewportPanKeydown } from '../../utils/dom'
 import type { PanOffset } from '../../types'
 import { SCROLLBAR_SIZE, VIEWPORT_GUTTER } from '../../types'
 
-const hScrollVisible = computed(() => canvasSize.value.width + VIEWPORT_GUTTER * 2 > viewportSize.value.width)
-const vScrollVisible = computed(() => canvasSize.value.height + VIEWPORT_GUTTER * 2 > viewportSize.value.height)
+const hScrollVisible = computed(
+  () => canvasSize.value.width + VIEWPORT_GUTTER * 2 > viewportSize.value.width,
+)
+const vScrollVisible = computed(
+  () => canvasSize.value.height + VIEWPORT_GUTTER * 2 > viewportSize.value.height,
+)
 
 const marginEndX = computed(() => VIEWPORT_GUTTER + (vScrollVisible.value ? SCROLLBAR_SIZE : 0))
 const marginEndY = computed(() => VIEWPORT_GUTTER + (hScrollVisible.value ? SCROLLBAR_SIZE : 0))
@@ -145,10 +149,14 @@ function zoomAtPointer(nextZoom: number, clientX: number, clientY: number) {
   zoomToLevel(nextZoom)
 
   editorStore.setPan(
-    clampPan({
-      x: cursorX - oldCol * renderScale.value,
-      y: cursorY - oldRow * renderScale.value,
-    }, 1, 'strict'),
+    clampPan(
+      {
+        x: cursorX - oldCol * renderScale.value,
+        y: cursorY - oldRow * renderScale.value,
+      },
+      1,
+      'strict',
+    ),
   )
   canvasPointer.updateHoverState(clientX, clientY, 'mouse')
 }

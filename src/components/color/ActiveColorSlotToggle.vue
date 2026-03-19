@@ -29,10 +29,10 @@ const slots: Array<{ id: ActiveColorSlot; label: string; detail: string }> = [
       <span class="status-label">Touch slot</span>
       <strong class="status-value">{{ activeSlot.toUpperCase() }} active</strong>
     </template>
-    
-    <div 
-      :class="['segmented-control', compact && 'segmented-control-vertical']" 
-      role="group" 
+
+    <div
+      :class="['segmented-control', compact && 'segmented-control-vertical']"
+      role="group"
       aria-label="Active touch color slot"
     >
       <button
@@ -47,7 +47,7 @@ const slots: Array<{ id: ActiveColorSlot; label: string; detail: string }> = [
         {{ slot.label }}
       </button>
     </div>
-    
+
     <span v-if="!compact" class="status-detail">
       {{ slots.find(slot => slot.id === activeSlot)?.detail }}
     </span>

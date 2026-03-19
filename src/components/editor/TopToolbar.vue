@@ -7,7 +7,7 @@
 -->
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   PopoverContent,
   PopoverPortal,
@@ -42,6 +42,13 @@ const emit = defineEmits<{
   new: []
 }>()
 
+const isMenuOpen = ref(false)
+
+function onMenuAction(action: 'exportJson' | 'exportSvg' | 'import' | 'new') {
+  isMenuOpen.value = false
+  ;(emit as (e: typeof action) => void)(action)
+}
+
 const showBrushSize = computed(() => {
   return ['pencil', 'eraser', 'line'].includes(activeTool.value)
 })
@@ -51,7 +58,7 @@ const showBrushSize = computed(() => {
   <header class="top-toolbar">
     <!-- Main Menu Panel -->
     <div class="toolbar-panel">
-      <PopoverRoot>
+      <PopoverRoot v-model:open="isMenuOpen">
         <PopoverTrigger as-child>
           <button type="button" class="toolbar-button" aria-label="Menu">
             <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
@@ -65,10 +72,10 @@ const showBrushSize = computed(() => {
               :import-error="importError"
               :is-importing="isImporting"
               :status-message="statusMessage"
-              @export-json="emit('exportJson')"
-              @export-svg="emit('exportSvg')"
-              @import="emit('import')"
-              @new="emit('new')"
+              @export-json="onMenuAction('exportJson')"
+              @export-svg="onMenuAction('exportSvg')"
+              @import="onMenuAction('import')"
+              @new="onMenuAction('new')"
             />
           </PopoverContent>
         </PopoverPortal>
@@ -129,9 +136,13 @@ const showBrushSize = computed(() => {
             @click="editorStore.toggleGrid()"
           >
             <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
-              <path d="M1 1h6v6H1V1zm1 1v4h4V2H2zM9 1h6v6H9V1zm1 1v4h4V2h-4zM1 9h6v6H1V9zm1 1v4h4v-4H2zm7-1h6v6H9V9zm1 1v4h4v-4h-4z" />
+              <path
+                d="M1 1h6v6H1V1zm1 1v4h4V2H2zM9 1h6v6H9V1zm1 1v4h4V2h-4zM1 9h6v6H1V9zm1 1v4h4v-4H2zm7-1h6v6H9V9zm1 1v4h4v-4h-4z"
+              />
             </svg>
-            <span class="text-xs font-bold uppercase transition-all">Grid {{ gridVisible ? 'On' : 'Off' }}</span>
+            <span class="text-xs font-bold uppercase transition-all"
+              >Grid {{ gridVisible ? 'On' : 'Off' }}</span
+            >
           </button>
         </TooltipTrigger>
         <TooltipPortal>
@@ -189,7 +200,9 @@ const showBrushSize = computed(() => {
     <!-- Document Info? Future? -->
     <div class="toolbar-panel px-4 py-2 hidden md:flex items-center gap-2">
       <span class="status-label text-[10px]">Document</span>
-      <span class="text-sm font-semibold truncate max-w-[150px]">{{ editorStore.document.metadata.name }}</span>
+      <span class="text-sm font-semibold truncate max-w-[150px]">{{
+        editorStore.document.metadata.name
+      }}</span>
     </div>
   </header>
 </template>
@@ -263,7 +276,13 @@ const showBrushSize = computed(() => {
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
