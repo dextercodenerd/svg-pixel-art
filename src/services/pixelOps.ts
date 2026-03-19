@@ -108,6 +108,48 @@ export function collectStrokeIndices(
   return indices
 }
 
+export function collectRectangleIndices(
+  width: number,
+  height: number,
+  col0: number,
+  row0: number,
+  col1: number,
+  row1: number,
+  strokeWidth: number,
+  fillEnabled: boolean,
+): { stroke: number[]; fill: number[] } {
+  const minCol = Math.min(col0, col1)
+  const maxCol = Math.max(col0, col1)
+  const minRow = Math.min(row0, row1)
+  const maxRow = Math.max(row0, row1)
+
+  const strokeIndices: number[] = []
+  const fillIndices: number[] = []
+
+  for (let row = minRow; row <= maxRow; row++) {
+    for (let col = minCol; col <= maxCol; col++) {
+      if (col < 0 || row < 0 || col >= width || row >= height) {
+        continue
+      }
+
+      const isStroke =
+        col < minCol + strokeWidth ||
+        col > maxCol - strokeWidth ||
+        row < minRow + strokeWidth ||
+        row > maxRow - strokeWidth
+
+      const index = getPixelIndex(width, col, row)
+      if (isStroke) {
+        strokeIndices.push(index)
+      } else if (fillEnabled) {
+        fillIndices.push(index)
+      }
+    }
+  }
+
+  return { stroke: strokeIndices, fill: fillIndices }
+}
+
 export function applyColorAtIndices(pixels: string[], indices: number[], color: string): boolean {
   const normalizedColor = normalizeTransparentPixel(color)
   let changed = false

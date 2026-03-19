@@ -10,11 +10,13 @@ import { ref, watch } from 'vue'
 import {
   applyColorAtIndices,
   bresenhamLine,
+  collectRectangleIndices,
   collectStrokeIndices,
   createPixelMask,
   floodFill,
   stampBrushInto,
 } from '../services/pixelOps'
+import { applyAlphaToHex } from '../services/colorUtils'
 import { useColorStore } from '../stores/color'
 import { useEditorStore } from '../stores/editor'
 import { EMPTY_PIXEL, TRANSPARENT, isTransparentPixel, normalizeTransparentPixel } from '../types'
@@ -33,8 +35,6 @@ interface CanvasCursor {
 }
 
 type PreviewMode = 'overlay' | 'replace'
-
-export const LINE_PREVIEW_PIXEL = '#000000a6'
 
 interface StrokeSession {
   color: string
@@ -56,7 +56,20 @@ interface LineSession {
   startPoint: CanvasPoint
 }
 
-type ActiveSession = LineSession | StrokeSession
+interface RectangleSession {
+  basePixels: string[]
+  currentPoint: CanvasPoint
+  fillColor: string
+  hasChanges: boolean
+  kind: 'rectangle'
+  pointerId: number
+  startPoint: CanvasPoint
+  strokeColor: string
+  strokeIndices: number[]
+  fillIndices: number[]
+}
+
+type ActiveSession = LineSession | RectangleSession | StrokeSession
 
 interface UseCanvasPointerOptions {
   displayPan: Ref<PanOffset>
@@ -86,7 +99,14 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
   const colorStore = useColorStore()
   const editorStore = useEditorStore()
   const { activeSlot, bg, fg } = storeToRefs(colorStore)
-  const { activeTool, brushSize, document } = storeToRefs(editorStore)
+  const {
+    activeTool,
+    brushSize,
+    document,
+    rectangleFillSlot,
+    rectangleStrokeSlot,
+    rectangleStrokeWidth,
+  } = storeToRefs(editorStore)
 
   const cursor = ref<CanvasCursor | null>(null)
   const hoverCell = ref<CanvasPoint | null>(null)
@@ -250,8 +270,63 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     previewPixels.value = createPixelMask(
       session.basePixels.length,
       lineIndices,
-      LINE_PREVIEW_PIXEL,
+      applyAlphaToHex(session.color, 0.65),
     )
+    previewMode.value = 'overlay'
+  }
+
+  function renderRectanglePreview(session: RectangleSession) {
+    const { stroke, fill } = collectRectangleIndices(
+      document.value.width,
+      document.value.height,
+      session.startPoint.col,
+      session.startPoint.row,
+      session.currentPoint.col,
+      session.currentPoint.row,
+      rectangleStrokeWidth.value,
+      session.fillColor !== TRANSPARENT,
+    )
+
+    const normalizedStroke = normalizeTransparentPixel(session.strokeColor)
+    const normalizedFill = normalizeTransparentPixel(session.fillColor)
+    let hasChanges = false
+
+    for (const index of stroke) {
+      if (session.basePixels[index] !== normalizedStroke) {
+        hasChanges = true
+        break
+      }
+    }
+
+    if (!hasChanges && normalizedFill !== EMPTY_PIXEL) {
+      for (const index of fill) {
+        if (session.basePixels[index] !== normalizedFill) {
+          hasChanges = true
+          break
+        }
+      }
+    }
+
+    session.strokeIndices = stroke
+    session.fillIndices = fill
+    session.hasChanges = hasChanges
+
+    const preview = Array<string>(session.basePixels.length).fill('')
+    const strokePreviewColor = applyAlphaToHex(session.strokeColor, 0.65)
+    const fillPreviewColor =
+      session.fillColor === TRANSPARENT ? '' : applyAlphaToHex(session.fillColor, 0.65)
+
+    if (fillPreviewColor !== '') {
+      for (const index of fill) {
+        preview[index] = fillPreviewColor
+      }
+    }
+
+    for (const index of stroke) {
+      preview[index] = strokePreviewColor
+    }
+
+    previewPixels.value = preview
     previewMode.value = 'overlay'
   }
 
@@ -285,6 +360,13 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     if (activeSession.kind === 'line' && activeSession.hasChanges) {
       const nextPixels = [...activeSession.basePixels]
       applyColorAtIndices(nextPixels, activeSession.lineIndices, activeSession.color)
+      editorStore.setPixels(nextPixels)
+    } else if (activeSession.kind === 'rectangle' && activeSession.hasChanges) {
+      const nextPixels = [...activeSession.basePixels]
+      if (activeSession.fillColor !== TRANSPARENT) {
+        applyColorAtIndices(nextPixels, activeSession.fillIndices, activeSession.fillColor)
+      }
+      applyColorAtIndices(nextPixels, activeSession.strokeIndices, activeSession.strokeColor)
       editorStore.setPixels(nextPixels)
     } else if (activeSession.kind === 'stroke' && activeSession.hasChanges) {
       editorStore.setPixels(activeSession.draftPixels)
@@ -379,6 +461,35 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       return
     }
 
+    if (tool === 'rectangle') {
+      const strokeColor = rectangleStrokeSlot.value === 'fg' ? fg.value : bg.value
+      const fillColor =
+        rectangleFillSlot.value === 'transparent'
+          ? TRANSPARENT
+          : rectangleFillSlot.value === 'fg'
+            ? fg.value
+            : bg.value
+
+      const session: RectangleSession = {
+        basePixels: [...document.value.pixels],
+        currentPoint: point,
+        fillColor,
+        hasChanges: false,
+        kind: 'rectangle',
+        pointerId: event.pointerId,
+        startPoint: point,
+        strokeColor,
+        strokeIndices: [],
+        fillIndices: [],
+      }
+
+      activeSession = session
+      renderRectanglePreview(session)
+      capturePointer(event)
+      event.preventDefault()
+      return
+    }
+
     const strokeColor = getStrokeColor(event.pointerType, event.button, tool)
     const draftPixels = [...document.value.pixels]
     const hasChanges = applyStrokeSegment(draftPixels, point, point, strokeColor)
@@ -431,7 +542,13 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     }
 
     activeSession.currentPoint = point
-    renderLinePreview(activeSession)
+
+    if (activeSession.kind === 'line') {
+      renderLinePreview(activeSession)
+    } else if (activeSession.kind === 'rectangle') {
+      renderRectanglePreview(activeSession)
+    }
+
     event.preventDefault()
   }
 

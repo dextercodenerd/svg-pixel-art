@@ -9,7 +9,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { saveDraft } from '../services/draftStorage'
 import { useHistoryStore } from './history'
-import type { BrushSize, EditorDocument, PanOffset, ToolId, ZoomLevel } from '../types'
+import type {
+  ActiveColorSlot,
+  BrushSize,
+  EditorDocument,
+  PanOffset,
+  ToolId,
+  ZoomLevel,
+} from '../types'
 import {
   createEditorDocument,
   createIsoTimestamp,
@@ -23,6 +30,9 @@ export const useEditorStore = defineStore('editor', () => {
   const document = ref<EditorDocument>(createEditorDocument())
   const activeTool = ref<ToolId>('pencil')
   const brushSize = ref<BrushSize>(1)
+  const rectangleStrokeSlot = ref<ActiveColorSlot>('fg')
+  const rectangleStrokeWidth = ref<BrushSize>(1)
+  const rectangleFillSlot = ref<ActiveColorSlot | 'transparent'>('transparent')
   const zoom = ref<ZoomLevel>(1)
   const gridVisible = ref(true)
   const panOffset = ref<PanOffset>({ x: 0, y: 0 })
@@ -143,6 +153,17 @@ export const useEditorStore = defineStore('editor', () => {
   function setBrushSize(size: BrushSize) {
     brushSize.value = size
   }
+  function setRectangleStrokeSlot(slot: ActiveColorSlot) {
+    rectangleStrokeSlot.value = slot
+  }
+
+  function setRectangleStrokeWidth(width: BrushSize) {
+    rectangleStrokeWidth.value = width
+  }
+
+  function setRectangleFillSlot(slot: ActiveColorSlot | 'transparent') {
+    rectangleFillSlot.value = slot
+  }
 
   function setZoom(nextZoom: ZoomLevel) {
     zoom.value = nextZoom
@@ -217,6 +238,9 @@ export const useEditorStore = defineStore('editor', () => {
     document,
     activeTool,
     brushSize,
+    rectangleStrokeSlot,
+    rectangleStrokeWidth,
+    rectangleFillSlot,
     zoom,
     gridVisible,
     panOffset,
@@ -228,6 +252,9 @@ export const useEditorStore = defineStore('editor', () => {
     setPixels,
     setTool,
     setBrushSize,
+    setRectangleStrokeSlot,
+    setRectangleStrokeWidth,
+    setRectangleFillSlot,
     setZoom,
     toggleGrid,
     setGridVisible,

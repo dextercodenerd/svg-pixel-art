@@ -19,7 +19,7 @@ export interface EditorDocument {
   metadata: DocumentMetadata
 }
 
-export type ToolId = 'pencil' | 'eraser' | 'line' | 'fill' | 'eyedropper'
+export type ToolId = 'pencil' | 'eraser' | 'line' | 'rectangle' | 'fill' | 'eyedropper'
 export type ActiveColorSlot = 'fg' | 'bg'
 export type ZoomLevel = 1 | 2 | 4 | 8 | 16
 export type BrushSize = 1 | 2 | 3 | 4

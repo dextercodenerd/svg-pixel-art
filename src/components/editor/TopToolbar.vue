@@ -19,6 +19,7 @@ import {
   TooltipTrigger,
 } from 'reka-ui'
 import BrushSizePicker from './BrushSizePicker.vue'
+import RectangleConfig from './RectangleConfig.vue'
 import DocumentActions from './DocumentActions.vue'
 import { useEditorStore } from '../../stores/editor'
 import { useHistoryStore } from '../../stores/history'
@@ -51,6 +52,10 @@ function onMenuAction(action: 'exportJson' | 'exportSvg' | 'import' | 'new') {
 
 const showBrushSize = computed(() => {
   return ['pencil', 'eraser', 'line'].includes(activeTool.value)
+})
+
+const showRectangleConfig = computed(() => {
+  return activeTool.value === 'rectangle'
 })
 </script>
 
@@ -193,6 +198,10 @@ const showBrushSize = computed(() => {
     <!-- Tool Context Panel -->
     <div v-if="showBrushSize" class="toolbar-panel">
       <BrushSizePicker />
+    </div>
+
+    <div v-else-if="showRectangleConfig" class="toolbar-panel">
+      <RectangleConfig />
     </div>
 
     <div class="flex-1" />

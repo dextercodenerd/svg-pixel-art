@@ -187,3 +187,13 @@ export function getContrastingTextHex(bgHex: string): '#000000ff' | '#ffffffff' 
   const luminance = 0.2126 * rl + 0.7152 * gl + 0.0722 * bl
   return luminance > 0.5 ? '#000000ff' : '#ffffffff'
 }
+
+export function applyAlphaToHex(hex: string, alpha: number): string {
+  try {
+    const parsed = parseHex(hex)
+    parsed.a = clampByte(Math.round(alpha * 255))
+    return formatHex(parsed)
+  } catch {
+    return hex
+  }
+}

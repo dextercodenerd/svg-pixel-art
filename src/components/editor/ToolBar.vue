@@ -30,6 +30,7 @@ const tools: ToolOption[] = [
   { id: 'pencil', label: 'Pencil', shortcut: 'P' },
   { id: 'eraser', label: 'Eraser', shortcut: 'E' },
   { id: 'line', label: 'Line', shortcut: 'L' },
+  { id: 'rectangle', label: 'Rectangle', shortcut: 'R' },
   { id: 'fill', label: 'Fill', shortcut: 'F' },
   { id: 'eyedropper', label: 'Eyedropper', shortcut: 'I' },
 ]
@@ -79,6 +80,15 @@ const tools: ToolOption[] = [
               <path d="M2 13h3L13 5V2h-3L2 10v3z" fill="currentColor" />
               <rect x="2" y="11" width="3" height="3" fill="currentColor" />
               <rect x="11" y="2" width="3" height="3" fill="currentColor" />
+            </svg>
+            <svg
+              v-else-if="tool.id === 'rectangle'"
+              viewBox="0 0 16 16"
+              class="tool-icon"
+              style="shape-rendering: crispEdges"
+              aria-hidden="true"
+            >
+              <path d="M2 2h12v12H2V2z m2 2v8h8V4H4z" fill="currentColor" />
             </svg>
             <svg
               v-else-if="tool.id === 'fill'"
