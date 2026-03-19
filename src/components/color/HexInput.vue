@@ -46,10 +46,22 @@ const inputStyle = computed(() => {
 watch(
   () => props.modelValue,
   value => {
-    inputValue.value = value
+    if (normalizeHexInput(inputValue.value) !== value) {
+      inputValue.value = value
+    }
     isInvalid.value = false
   },
 )
+
+watch(inputValue, value => {
+  const normalized = normalizeHexInput(value)
+  if (normalized != null) {
+    isInvalid.value = false
+    if (normalized !== props.modelValue) {
+      emit('update:modelValue', normalized)
+    }
+  }
+})
 
 function commitValue() {
   const normalized = normalizeHexInput(inputValue.value)

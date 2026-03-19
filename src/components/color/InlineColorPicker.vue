@@ -70,7 +70,7 @@ const activeAlpha = computed({
         <div class="segmented-control">
           <button
             type="button"
-            class="segmented-control-item !min-h-0 py-1.5 text-[10px]"
+            class="segmented-control-item !min-h-0 p-1.5 text-[10px]"
             :data-active="colorStore.activeSlot === 'fg'"
             @click="colorStore.setActiveSlot('fg')"
           >
@@ -78,16 +78,13 @@ const activeAlpha = computed({
           </button>
           <button
             type="button"
-            class="segmented-control-item !min-h-0 py-1.5 text-[10px]"
+            class="segmented-control-item !min-h-0 p-1.5 text-[10px]"
             :data-active="colorStore.activeSlot === 'bg'"
             @click="colorStore.setActiveSlot('bg')"
           >
             BG
           </button>
         </div>
-        <strong class="text-[10px] font-extrabold tracking-[0.12em] text-[var(--ink-soft)]">
-          {{ colorStore.activeSlot.toUpperCase() }} active
-        </strong>
       </div>
     </div>
 

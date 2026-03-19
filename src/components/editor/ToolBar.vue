@@ -106,7 +106,7 @@ const tools: ToolOption[] = [
           </button>
         </TooltipTrigger>
         <TooltipPortal>
-          <TooltipContent side="top" :side-offset="10" class="editor-tooltip">
+          <TooltipContent side="bottom" :side-offset="10" class="editor-tooltip">
             {{ tool.label }} · {{ tool.shortcut }}
           </TooltipContent>
         </TooltipPortal>

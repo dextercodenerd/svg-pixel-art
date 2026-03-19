@@ -112,7 +112,7 @@ function requestExportSvg() {
           </button>
         </TooltipTrigger>
         <TooltipPortal>
-          <TooltipContent side="top" :side-offset="10" class="editor-tooltip">
+          <TooltipContent side="bottom" :side-offset="10" class="editor-tooltip">
             New document
           </TooltipContent>
         </TooltipPortal>
@@ -130,7 +130,7 @@ function requestExportSvg() {
           </button>
         </TooltipTrigger>
         <TooltipPortal>
-          <TooltipContent side="top" :side-offset="10" class="editor-tooltip">
+          <TooltipContent side="bottom" :side-offset="10" class="editor-tooltip">
             Import file · Ctrl/Cmd+O
           </TooltipContent>
         </TooltipPortal>
@@ -143,7 +143,7 @@ function requestExportSvg() {
           </button>
         </TooltipTrigger>
         <TooltipPortal>
-          <TooltipContent side="top" :side-offset="10" class="editor-tooltip">
+          <TooltipContent side="bottom" :side-offset="10" class="editor-tooltip">
             Export JSON · Ctrl/Cmd+S
           </TooltipContent>
         </TooltipPortal>
@@ -156,7 +156,7 @@ function requestExportSvg() {
           </button>
         </TooltipTrigger>
         <TooltipPortal>
-          <TooltipContent side="top" :side-offset="10" class="editor-tooltip">
+          <TooltipContent side="bottom" :side-offset="10" class="editor-tooltip">
             Export SVG · Ctrl/Cmd+Shift+S
           </TooltipContent>
         </TooltipPortal>

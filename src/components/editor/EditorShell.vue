@@ -158,11 +158,8 @@ onMounted(() => {
         <aside
           class="panel custom-scrollbar order-3 flex flex-col overflow-y-auto overflow-x-hidden p-4 md:p-5"
         >
-          <div>
-            <p class="eyebrow">Colors & Tools</p>
-            <div class="mt-4 grid gap-3">
-              <PalettePanel />
-            </div>
+          <div class="grid gap-3">
+            <PalettePanel />
           </div>
         </aside>
 
