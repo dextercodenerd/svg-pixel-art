@@ -5,13 +5,50 @@
  * This source code is licensed under the GNU Affero General Public License v3.0
  * found in the LICENSE file in the root directory of this source tree.
  */
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { nextTick } from 'vue'
 import { useColorStore } from '../src/stores/color'
 
+class MemoryStorage implements Storage {
+  private readonly values = new Map<string, string>()
+
+  get length() {
+    return this.values.size
+  }
+
+  clear() {
+    this.values.clear()
+  }
+
+  getItem(key: string) {
+    return this.values.has(key) ? (this.values.get(key) ?? null) : null
+  }
+
+  key(index: number) {
+    return [...this.values.keys()][index] ?? null
+  }
+
+  removeItem(key: string) {
+    this.values.delete(key)
+  }
+
+  setItem(key: string, value: string) {
+    this.values.set(key, value)
+  }
+}
+
 describe('color store', () => {
+  let storage: MemoryStorage
+
   beforeEach(() => {
     setActivePinia(createPinia())
+    storage = new MemoryStorage()
+    vi.stubGlobal('localStorage', storage)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('swap exchanges fg and bg without losing either value', () => {
@@ -58,5 +95,26 @@ describe('color store', () => {
 
     expect(colorStore.fg).toBe('#123456ff')
     expect(colorStore.bg).toBe('#abcdef12')
+  })
+
+  it('restores stored colors during initialization', () => {
+    storage.setItem('pixel-art:colors', JSON.stringify({ fg: '#AABBCC', bg: 'ddeeff' }))
+
+    const colorStore = useColorStore()
+
+    expect(colorStore.fg).toBe('#aabbccff')
+    expect(colorStore.bg).toBe('#ddeeffff')
+  })
+
+  it('persists normalized colors after updates', async () => {
+    const colorStore = useColorStore()
+
+    colorStore.setFg('#AABBCC')
+    colorStore.setBg('ddeeff')
+    await nextTick()
+
+    expect(storage.getItem('pixel-art:colors')).toBe(
+      JSON.stringify({ fg: '#aabbccff', bg: '#ddeeffff' }),
+    )
   })
 })

@@ -8,7 +8,7 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
-import { LINE_PREVIEW_PIXEL, useCanvasPointer } from '../src/composables/useCanvasPointer'
+import { useCanvasPointer } from '../src/composables/useCanvasPointer'
 import { useColorStore } from '../src/stores/color'
 import { useEditorStore } from '../src/stores/editor'
 import { useHistoryStore } from '../src/stores/history'
@@ -55,7 +55,7 @@ describe('useCanvasPointer line preview', () => {
     setActivePinia(createPinia())
   })
 
-  it('renders a black alpha preview mask during drag and commits the real line color once', () => {
+  it('renders a colorized alpha preview mask during drag and commits the real line color once', () => {
     const editorStore = useEditorStore()
     const colorStore = useColorStore()
     const historyStore = useHistoryStore()
@@ -122,17 +122,17 @@ describe('useCanvasPointer line preview', () => {
     expect(editorStore.document.pixels[0]).toBe(EMPTY_PIXEL)
     expect(canvasPointer.previewMode.value).toBe('overlay')
     expect(canvasPointer.previewPixels.value).toEqual([
-      LINE_PREVIEW_PIXEL,
+      '#ff0000a6',
       EMPTY_PIXEL,
       EMPTY_PIXEL,
       EMPTY_PIXEL,
       EMPTY_PIXEL,
-      LINE_PREVIEW_PIXEL,
+      '#ff0000a6',
       EMPTY_PIXEL,
       EMPTY_PIXEL,
       EMPTY_PIXEL,
       EMPTY_PIXEL,
-      LINE_PREVIEW_PIXEL,
+      '#ff0000a6',
       EMPTY_PIXEL,
       EMPTY_PIXEL,
       EMPTY_PIXEL,
@@ -162,6 +162,288 @@ describe('useCanvasPointer line preview', () => {
       EMPTY_PIXEL,
       '#00ff00ff',
     ])
+  })
+})
+
+describe('useCanvasPointer rectangle preview', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('commits a transparent-fill rectangle border once on pointer up', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+
+    editorStore.loadDocument(createEditorDocument({ width: 4, height: 4 }))
+    editorStore.setTool('rectangle')
+    editorStore.setRectangleStrokeSlot('fg')
+    editorStore.setRectangleStrokeWidth(1)
+    editorStore.setRectangleFillSlot('transparent')
+    colorStore.setFg('#ff0000ff')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const startEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 11,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const moveEvent = {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+      currentTarget: canvasTarget,
+      pointerId: 11,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(startEvent)
+    canvasPointer.onPointerMove(moveEvent)
+
+    expect(historyStore.snapshots).toHaveLength(1)
+    expect(canvasPointer.previewMode.value).toBe('overlay')
+    expect(canvasPointer.previewPixels.value).toEqual([
+      '#ff0000a6',
+      '#ff0000a6',
+      '#ff0000a6',
+      EMPTY_PIXEL,
+      '#ff0000a6',
+      EMPTY_PIXEL,
+      '#ff0000a6',
+      EMPTY_PIXEL,
+      '#ff0000a6',
+      '#ff0000a6',
+      '#ff0000a6',
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+    ])
+
+    canvasPointer.onPointerUp(moveEvent)
+
+    expect(historyStore.snapshots).toHaveLength(2)
+    expect(canvasPointer.previewPixels.value).toBeNull()
+    expect(editorStore.document.pixels).toEqual([
+      '#ff0000ff',
+      '#ff0000ff',
+      '#ff0000ff',
+      EMPTY_PIXEL,
+      '#ff0000ff',
+      EMPTY_PIXEL,
+      '#ff0000ff',
+      EMPTY_PIXEL,
+      '#ff0000ff',
+      '#ff0000ff',
+      '#ff0000ff',
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+    ])
+  })
+
+  it('uses normalized bounds for reverse drags and keeps stroke over fill', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+
+    editorStore.loadDocument(createEditorDocument({ width: 4, height: 4 }))
+    editorStore.setTool('rectangle')
+    editorStore.setRectangleStrokeSlot('bg')
+    editorStore.setRectangleStrokeWidth(1)
+    editorStore.setRectangleFillSlot('fg')
+    colorStore.setFg('#ff0000ff')
+    colorStore.setBg('#00ff00ff')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const startEvent = {
+      button: 0,
+      clientX: 28,
+      clientY: 28,
+      currentTarget: canvasTarget,
+      pointerId: 12,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const moveEvent = {
+      button: 0,
+      clientX: 12,
+      clientY: 12,
+      currentTarget: canvasTarget,
+      pointerId: 12,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(startEvent)
+    canvasPointer.onPointerMove(moveEvent)
+    canvasPointer.onPointerUp(moveEvent)
+
+    expect(historyStore.snapshots).toHaveLength(2)
+    expect(editorStore.document.pixels).toEqual([
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      '#00ff00ff',
+      '#00ff00ff',
+      '#00ff00ff',
+      EMPTY_PIXEL,
+      '#00ff00ff',
+      '#ff0000ff',
+      '#00ff00ff',
+      EMPTY_PIXEL,
+      '#00ff00ff',
+      '#00ff00ff',
+      '#00ff00ff',
+    ])
+  })
+
+  it('does not rebuild the preview when the pointer stays within the same cell', () => {
+    const editorStore = useEditorStore()
+
+    editorStore.loadDocument(createEditorDocument({ width: 4, height: 4 }))
+    editorStore.setTool('rectangle')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const startEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 13,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const moveEventSameCell = {
+      button: 0,
+      clientX: 7,
+      clientY: 7,
+      currentTarget: canvasTarget,
+      pointerId: 13,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(startEvent)
+    const initialPreview = canvasPointer.previewPixels.value
+
+    canvasPointer.onPointerMove(moveEventSameCell)
+
+    expect(canvasPointer.previewPixels.value).toBe(initialPreview)
+  })
+
+  it('does not push history when the committed rectangle would be identical', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+    const document = createEditorDocument({ width: 4, height: 4 })
+
+    document.pixels = [
+      '#ff0000ff',
+      '#ff0000ff',
+      '#ff0000ff',
+      EMPTY_PIXEL,
+      '#ff0000ff',
+      EMPTY_PIXEL,
+      '#ff0000ff',
+      EMPTY_PIXEL,
+      '#ff0000ff',
+      '#ff0000ff',
+      '#ff0000ff',
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+      EMPTY_PIXEL,
+    ]
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('rectangle')
+    editorStore.setRectangleStrokeSlot('fg')
+    editorStore.setRectangleStrokeWidth(1)
+    editorStore.setRectangleFillSlot('transparent')
+    colorStore.setFg('#ff0000ff')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const startEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 14,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const moveEvent = {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+      currentTarget: canvasTarget,
+      pointerId: 14,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(startEvent)
+    canvasPointer.onPointerMove(moveEvent)
+    canvasPointer.onPointerUp(moveEvent)
+
+    expect(historyStore.snapshots).toHaveLength(1)
+    expect(editorStore.document.pixels).toEqual(document.pixels)
   })
 })
 

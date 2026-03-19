@@ -48,6 +48,9 @@ describe('createKeyboardShortcutHandler', () => {
     handler(createKeyboardEvent('e'))
     expect(editorStore.activeTool).toBe('eraser')
 
+    handler(createKeyboardEvent('r'))
+    expect(editorStore.activeTool).toBe('rectangle')
+
     editorStore.setBrushSize(2)
     handler(createKeyboardEvent(']'))
     expect(editorStore.brushSize).toBe(3)

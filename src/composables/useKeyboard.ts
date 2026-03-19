@@ -66,11 +66,12 @@ export function createKeyboardShortcutHandler(actions: KeyboardShortcutActions) 
     }
 
     if (!commandModifier && !event.altKey) {
-      if (key === 'p' || key === 'e' || key === 'l' || key === 'f' || key === 'i') {
+      if (key === 'p' || key === 'e' || key === 'l' || key === 'r' || key === 'f' || key === 'i') {
         const toolMap: Record<string, ToolId> = {
           p: 'pencil',
           e: 'eraser',
           l: 'line',
+          r: 'rectangle',
           f: 'fill',
           i: 'eyedropper',
         }

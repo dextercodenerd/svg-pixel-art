@@ -10,6 +10,7 @@ import {
   applyColorAtIndices,
   bresenhamLine,
   brushStamp,
+  collectRectangleIndices,
   collectStrokeIndices,
   createPixelMask,
   floodFill,
@@ -217,5 +218,47 @@ describe('line helpers', () => {
 
     expect(changed).toBe(true)
     expect(pixels).toEqual(['#ff0000ff', '#00ff00ff', '#ff0000ff', EMPTY_PIXEL])
+  })
+})
+
+describe('rectangle helpers', () => {
+  it('collects a 1px stroke border and separate fill indices', () => {
+    expect(collectRectangleIndices(5, 5, 1, 1, 3, 3, 1, true)).toEqual({
+      stroke: [6, 7, 8, 11, 13, 16, 17, 18],
+      fill: [12],
+    })
+  })
+
+  it('normalizes reverse drag bounds before collecting indices', () => {
+    expect(collectRectangleIndices(5, 5, 3, 3, 1, 1, 1, true)).toEqual({
+      stroke: [6, 7, 8, 11, 13, 16, 17, 18],
+      fill: [12],
+    })
+  })
+
+  it('treats thick strokes as covering the full small rectangle before fill', () => {
+    expect(collectRectangleIndices(5, 5, 0, 0, 4, 4, 2, true)).toEqual({
+      stroke: [
+        0, 1, 2, 3, 4,
+        5, 6, 7, 8, 9,
+        10, 11, 13, 14,
+        15, 16, 17, 18, 19,
+        20, 21, 22, 23, 24,
+      ],
+      fill: [12],
+    })
+  })
+
+  it('clips out-of-bounds drags to valid document indices only', () => {
+    expect(collectRectangleIndices(3, 3, -1, -1, 1, 1, 1, true)).toEqual({
+      stroke: [1, 3, 4],
+      fill: [0],
+    })
+  })
+
+  it('returns disjoint stroke and fill indices', () => {
+    const { stroke, fill } = collectRectangleIndices(5, 5, 1, 1, 3, 3, 1, true)
+
+    expect(stroke.some(index => fill.includes(index))).toBe(false)
   })
 })

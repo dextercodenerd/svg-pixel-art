@@ -541,6 +541,14 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       return
     }
 
+    if (
+      point.col === activeSession.currentPoint.col &&
+      point.row === activeSession.currentPoint.row
+    ) {
+      event.preventDefault()
+      return
+    }
+
     activeSession.currentPoint = point
 
     if (activeSession.kind === 'line') {
