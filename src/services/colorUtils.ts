@@ -173,3 +173,17 @@ export function hsvToRgb(h: number, s: number, v: number): RgbColor {
     b: clampByte((blue + match) * 255),
   }
 }
+
+function srgbToLinear(channel: number): number {
+  const c = clampByte(channel) / 255
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+}
+
+export function getContrastingTextHex(bgHex: string): '#000000ff' | '#ffffffff' {
+  const { r, g, b } = parseHex(bgHex)
+  const rl = srgbToLinear(r)
+  const gl = srgbToLinear(g)
+  const bl = srgbToLinear(b)
+  const luminance = 0.2126 * rl + 0.7152 * gl + 0.0722 * bl
+  return luminance > 0.5 ? '#000000ff' : '#ffffffff'
+}

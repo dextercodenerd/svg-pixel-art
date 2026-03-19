@@ -67,11 +67,10 @@ const activeAlpha = computed({
       <span class="status-label">Color picker</span>
 
       <div class="flex items-center gap-2 text-xs">
-        <span class="text-[var(--ink-soft)]">Editing</span>
-        <div class="inline-flex rounded border border-[var(--panel-border)] bg-[var(--panel-inner)]">
+        <div class="segmented-control">
           <button
             type="button"
-            class="px-2 py-1 font-semibold"
+            class="segmented-control-item !min-h-0 py-1.5 text-[10px]"
             :data-active="colorStore.activeSlot === 'fg'"
             @click="colorStore.setActiveSlot('fg')"
           >
@@ -79,13 +78,16 @@ const activeAlpha = computed({
           </button>
           <button
             type="button"
-            class="px-2 py-1 font-semibold"
+            class="segmented-control-item !min-h-0 py-1.5 text-[10px]"
             :data-active="colorStore.activeSlot === 'bg'"
             @click="colorStore.setActiveSlot('bg')"
           >
             BG
           </button>
         </div>
+        <strong class="text-[10px] font-extrabold tracking-[0.12em] text-[var(--ink-soft)]">
+          {{ colorStore.activeSlot.toUpperCase() }} active
+        </strong>
       </div>
     </div>
 
@@ -95,37 +97,33 @@ const activeAlpha = computed({
       <div class="space-y-2">
         <div class="flex items-center justify-between gap-3">
           <span class="status-label">Transparency</span>
-          <span class="text-xs text-[var(--ink-soft)]">
-            {{ Math.round((activeAlpha / 255) * 100) }}%
-          </span>
         </div>
         <SliderRoot
-          class="channel-slider-root"
+          class="channel-slider-root channel-slider-root-alpha"
           :model-value="[activeAlpha]"
           :max="255"
           :step="1"
           aria-label="Alpha channel"
           @update:model-value="values => (activeAlpha = values?.[0] ?? activeAlpha)"
         >
-          <SliderTrack class="channel-slider-track">
-            <SliderRange class="channel-slider-range" />
+          <SliderTrack class="channel-slider-track channel-slider-track-alpha checkerboard-surface">
+            <SliderRange class="channel-slider-range channel-slider-range-alpha" />
           </SliderTrack>
-          <SliderThumb class="channel-slider-thumb" />
+          <SliderThumb class="channel-slider-thumb channel-slider-thumb-alpha" />
         </SliderRoot>
       </div>
     </div>
 
-    <div class="grid gap-3 md:grid-cols-2">
+    <div class="space-y-3">
       <div class="space-y-1">
-        <span class="status-label">FG hex</span>
-        <HexInput v-model="fgColor" />
+        <span class="status-label">Foreground hex</span>
+        <HexInput v-model="fgColor" :color="fgColor" />
       </div>
 
       <div class="space-y-1">
-        <span class="status-label">BG hex</span>
-        <HexInput v-model="bgColor" />
+        <span class="status-label">Background hex</span>
+        <HexInput v-model="bgColor" :color="bgColor" />
       </div>
     </div>
   </section>
 </template>
-

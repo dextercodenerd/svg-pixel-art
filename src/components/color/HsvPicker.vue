@@ -267,7 +267,7 @@ onBeforeUnmount(() => {
       <div class="relative">
         <canvas
           ref="hueCanvasRef"
-          class="block h-5 w-full border-2 border-[var(--panel-border)]"
+          class="block w-full border-2 border-[var(--panel-border)] hue-slider-canvas"
           style="touch-action: none"
           @pointerdown="startDrag('hue', $event)"
           @pointermove="continueDrag('hue', $event)"
