@@ -294,7 +294,9 @@ select {
 }
 
 .editor-button,
-.tool-button {
+.tool-button,
+.icon-only-button,
+.sidebar-action-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -310,6 +312,18 @@ select {
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
+}
+
+.icon-only-button {
+  min-height: 0;
+  padding: 0.25rem;
+}
+
+.sidebar-action-button {
+  width: 3.75rem;
+  height: 3.75rem;
+  padding: 0;
+  min-height: 0;
 }
 
 .text-field {
@@ -331,12 +345,16 @@ select {
 }
 
 .editor-button:hover,
-.tool-button:hover {
+.tool-button:hover,
+.icon-only-button:hover,
+.sidebar-action-button:hover {
   background: var(--app-bg-accent);
 }
 
 .editor-button:active,
 .tool-button:active,
+.icon-only-button:active,
+.sidebar-action-button:active,
 .tool-button[data-active='true'] {
   border-top: 2px solid var(--panel-border-strong);
   border-left: 2px solid var(--panel-border-strong);
@@ -347,6 +365,17 @@ select {
   padding-left: calc(0.95rem + 1px);
   padding-right: calc(0.95rem - 1px);
   background: var(--app-bg-accent);
+}
+
+.icon-only-button:active {
+  padding-top: calc(0.25rem + 1px);
+  padding-bottom: calc(0.25rem - 1px);
+  padding-left: calc(0.25rem + 1px);
+  padding-right: calc(0.25rem - 1px);
+}
+
+.sidebar-action-button:active {
+  padding: 0;
 }
 
 .editor-button:disabled,
@@ -361,7 +390,7 @@ select {
 .tool-strip {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0.2rem;
+  gap: 1px;
 }
 
 .tool-icon-button,
@@ -370,8 +399,9 @@ select {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 2.8rem;
-  padding: 0.45rem 0.45rem;
+  width: 3.75rem;
+  height: 3.75rem;
+  padding: 0;
   border-top: 2px solid white;
   border-left: 2px solid white;
   border-right: 2px solid var(--panel-border-strong);
@@ -394,16 +424,12 @@ select {
   border-left: 2px solid var(--panel-border-strong);
   border-right: 2px solid white;
   border-bottom: 2px solid white;
-  padding-top: calc(0.45rem + 1px);
-  padding-bottom: calc(0.45rem - 1px);
-  padding-left: calc(0.45rem + 1px);
-  padding-right: calc(0.45rem - 1px);
   background: var(--app-bg-accent);
 }
 
 .tool-icon {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .editor-tooltip {
@@ -492,15 +518,26 @@ select {
   outline-offset: 3px;
 }
 
-.color-slot-back {
-  left: 0;
-  top: 0;
+.color-slot-front {
+  left: 0 !important;
+  top: 0 !important;
+  z-index: 2;
 }
 
-.color-slot-front {
-  left: 3rem;
-  top: 2rem;
+.color-slot-back {
+  left: 1.0rem !important;
+  top: 0.8rem !important;
   z-index: 1;
+}
+
+.color-slot-compact {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.color-slot-compact.color-slot-front {
+  left: 0.8rem;
+  top: 0.6rem;
 }
 
 .color-slot-label {
@@ -520,13 +557,17 @@ select {
 .segmented-control {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.3rem;
-  padding: 0.32rem;
+  gap: 0.15rem;
+  padding: 0.2rem;
   border-top: 2px solid var(--panel-border-strong);
   border-left: 2px solid var(--panel-border-strong);
   border-right: 2px solid white;
   border-bottom: 2px solid white;
   background: rgba(246, 235, 221, 0.9);
+}
+
+.segmented-control-vertical {
+  grid-template-columns: 1fr;
 }
 
 .segmented-control-item {
