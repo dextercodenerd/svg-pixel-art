@@ -25,15 +25,13 @@ import { loadDraft } from '../../services/draftStorage'
 import { useConfirmationDialog } from '../../services/confirmationService'
 import { useColorStore } from '../../stores/color'
 import { useEditorStore } from '../../stores/editor'
-import { useHistoryStore } from '../../stores/history'
-import { BASE_PIXEL_SIZE, DEFAULT_DOCUMENT_NAME, EMPTY_PIXEL } from '../../types'
+import { DEFAULT_DOCUMENT_NAME, EMPTY_PIXEL } from '../../types'
 
 const editorStore = useEditorStore()
 const colorStore = useColorStore()
 
-const { document, gridVisible, zoom } = storeToRefs(editorStore)
+const { document } = storeToRefs(editorStore)
 const { fg } = storeToRefs(colorStore)
-const { canRedo, canUndo } = storeToRefs(useHistoryStore())
 const autoSaveEnabled = ref(false)
 const confirmationDialog = useConfirmationDialog()
 
@@ -42,7 +40,6 @@ const cursorRow = ref<number | null>(null)
 const actionMessage = ref<string | null>(null)
 const isNewDocumentDialogOpen = ref(false)
 
-const effectivePixelSize = computed(() => BASE_PIXEL_SIZE * zoom.value)
 const isAnyDialogOpen = computed(
   () => confirmationDialog.isOpen.value || isNewDocumentDialogOpen.value,
 )
@@ -159,24 +156,8 @@ onMounted(() => {
         </main>
 
         <aside
-          class="panel custom-scrollbar order-3 flex flex-col gap-6 overflow-y-auto overflow-x-hidden p-4 md:p-5"
+          class="panel custom-scrollbar order-3 flex flex-col overflow-y-auto overflow-x-hidden p-4 md:p-5"
         >
-          <div>
-            <p class="eyebrow">Document Status</p>
-            <div class="mt-4 space-y-3">
-              <div class="status-card">
-                <span class="status-label">History</span>
-                <strong class="status-value">Undo {{ canUndo ? 'ready' : 'empty' }}</strong>
-                <span class="status-detail">Redo {{ canRedo ? 'ready' : 'empty' }}</span>
-              </div>
-              <div class="status-card">
-                <span class="status-label">Viewport</span>
-                <strong class="status-value">{{ zoom }}x / {{ effectivePixelSize }}px</strong>
-                <span class="status-detail">Grid {{ gridVisible ? 'visible' : 'hidden' }}</span>
-              </div>
-            </div>
-          </div>
-
           <div>
             <p class="eyebrow">Colors & Tools</p>
             <div class="mt-4 grid gap-3">

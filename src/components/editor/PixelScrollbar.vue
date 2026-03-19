@@ -54,7 +54,9 @@ const thumbPosition = computed(() => {
 })
 
 function onMouseDown(event: MouseEvent) {
-  if (thumbSize.value === 0) return
+  if (thumbSize.value === 0) {
+    return
+  }
 
   isDragging.value = true
   dragStartMousePos.value = props.orientation === 'horizontal' ? event.clientX : event.clientY
@@ -66,7 +68,9 @@ function onMouseDown(event: MouseEvent) {
 }
 
 function onMouseMove(event: MouseEvent) {
-  if (!isDragging.value) return
+  if (!isDragging.value) {
+    return
+  }
 
   const currentMousePos = props.orientation === 'horizontal' ? event.clientX : event.clientY
   const deltaPx = currentMousePos - dragStartMousePos.value
