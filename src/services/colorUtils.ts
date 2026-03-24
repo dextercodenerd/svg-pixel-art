@@ -132,6 +132,45 @@ export function rgbToHsv(r: number, g: number, b: number): HsvColor {
   }
 }
 
+/**
+ * Convert a '#rrggbbaa' hex string to a uint32 in ABGR byte order
+ * (little-endian native), suitable for direct ImageData buffer writes.
+ * Returns 0 for null, undefined, or empty-string inputs.
+ */
+export function hexToAbgr(hex: string | null | undefined): number {
+  if (hex == null || hex === '') {
+    return 0
+  }
+
+  const { r, g, b, a } = parseHex(hex)
+  if (a === 0) {
+    return 0
+  }
+  return ((a << 24) | (b << 16) | (g << 8) | r) >>> 0
+}
+
+/**
+ * Convert an ABGR uint32 back to a '#rrggbbaa' hex string.
+ * Returns '' (EMPTY_PIXEL) when the alpha byte is 0.
+ */
+export function abgrToHex(value: number): string {
+  if (value >>> 24 === 0) {
+    return ''
+  }
+
+  return formatHex({
+    r: value & 0xff,
+    g: (value >>> 8) & 0xff,
+    b: (value >>> 16) & 0xff,
+    a: (value >>> 24) & 0xff,
+  })
+}
+
+/** True when the alpha byte of an ABGR uint32 is 0. */
+export function isTransparentAbgr(value: number): boolean {
+  return value >>> 24 === 0
+}
+
 export function hsvToRgb(h: number, s: number, v: number): RgbColor {
   const hue = ((h % 360) + 360) % 360
   const saturation = clampUnit(s)
@@ -172,4 +211,34 @@ export function hsvToRgb(h: number, s: number, v: number): RgbColor {
     g: clampByte((green + match) * 255),
     b: clampByte((blue + match) * 255),
   }
+}
+
+function srgbToLinear(channel: number): number {
+  const c = clampByte(channel) / 255
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+}
+
+export function getContrastingTextHex(bgHex: string): '#000000ff' | '#ffffffff' {
+  const { r, g, b } = parseHex(bgHex)
+  const rl = srgbToLinear(r)
+  const gl = srgbToLinear(g)
+  const bl = srgbToLinear(b)
+  const luminance = 0.2126 * rl + 0.7152 * gl + 0.0722 * bl
+  return luminance > 0.5 ? '#000000ff' : '#ffffffff'
+}
+
+export function applyAlphaToHex(hex: string, alpha: number): string {
+  try {
+    const parsed = parseHex(hex)
+    parsed.a = clampByte(Math.round(alpha * 255))
+    return formatHex(parsed)
+  } catch {
+    return hex
+  }
+}
+
+/** Replace the alpha byte of an ABGR uint32 with the given opacity (0–1). */
+export function applyAlphaToAbgr(value: number, alpha: number): number {
+  const a = clampByte(Math.round(alpha * 255))
+  return (value & 0x00ffffff) | (a << 24)
 }

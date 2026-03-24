@@ -31,7 +31,7 @@ function onOpenChange(nextOpen: boolean) {
       <DialogOverlay class="dialog-overlay" />
       <DialogContent v-if="confirmationDialog.request.value != null" class="dialog-content">
         <div class="space-y-3">
-          <DialogTitle class="dialog-title">
+          <DialogTitle class="dialog-title uppercase tracking-wider">
             {{ confirmationDialog.request.value.title }}
           </DialogTitle>
           <DialogDescription class="dialog-description">

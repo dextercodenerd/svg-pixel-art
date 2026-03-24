@@ -17,6 +17,8 @@ Use Yarn 4 for all package management and scripts. There is no npm!!!
 ## Coding Style & Naming Conventions
 Follow the existing Vue SFC pattern with `<script setup lang="ts">` and use Vue 3's Composition API exclusively across the app. Pinia stores should always use setup-style composition stores (`defineStore('id', () => {})`), not the options/object store syntax. Prettier is the formatting source of truth: 2-space indentation, single quotes, no semicolons, trailing commas, 100-character line width, and LF endings. ESLint enforces additional rules such as mandatory curly braces. Use PascalCase for Vue component filenames (`HelloWorld.vue`), camelCase for variables and functions, and keep component logic, template, and styles grouped in the same `.vue` file when practical.
 
+Always run `yarn format` after a finished coding task.
+
 ## Testing Guidelines
 Vitest is configured for TypeScript unit and integration tests, and Vue component tests should use `@vue/test-utils`. The minimum validation set before opening a PR is `yarn test`, `yarn lint`, `yarn build`, and `yarn format:check`. Playwright is the likely future choice for end-to-end coverage, but it is not currently configured. Place tests under `tests/` and mirror the source structure where possible.
 

@@ -9,8 +9,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useEditorStore } from '../src/stores/editor'
 import { useHistoryStore } from '../src/stores/history'
-import { EMPTY_PIXEL, createEditorDocument } from '../src/types'
+import { TRANSPARENT_U32, createEditorDocument } from '../src/types'
+import { hexToAbgr } from '../src/services/colorUtils'
 import { DRAFT_STORAGE_KEY } from '../src/services/draftStorage'
+
+const T = TRANSPARENT_U32
+const h = hexToAbgr
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>()
@@ -63,15 +67,16 @@ describe('editor store', () => {
     editorStore.setGridVisible(false)
     editorStore.setPan({ x: 24, y: -12 })
 
+    const fill = h('#abcdef88')
     editorStore.newDocument({
       width: 4,
       height: 3,
-      fill: '#abcdef88',
+      fill,
       name: 'fresh-doc',
     })
 
     expect(editorStore.document.metadata.name).toBe('fresh-doc')
-    expect(editorStore.document.pixels).toEqual(Array(12).fill('#abcdef88'))
+    expect(editorStore.document.pixels).toEqual(new Uint32Array(12).fill(fill))
     expect(editorStore.zoom).toBe(1)
     expect(editorStore.gridVisible).toBe(true)
     expect(editorStore.panOffset).toEqual({ x: 0, y: 0 })
@@ -83,24 +88,24 @@ describe('editor store', () => {
     const editorStore = useEditorStore()
     const historyStore = useHistoryStore()
 
-    const nextPixels = [...editorStore.document.pixels]
-    nextPixels[0] = '#102030ff'
+    const nextPixels = new Uint32Array(editorStore.document.pixels)
+    nextPixels[0] = h('#102030ff')
 
     vi.setSystemTime(new Date('2026-03-13T16:05:00.000Z'))
     editorStore.setPixels(nextPixels)
 
-    expect(editorStore.document.pixels[0]).toBe('#102030ff')
+    expect(editorStore.document.pixels[0]).toBe(h('#102030ff'))
     expect(editorStore.document.metadata.updatedAt).toBe('2026-03-13T16:05:00.000Z')
     expect(historyStore.snapshots).toHaveLength(2)
-    expect(historyStore.currentSnapshot?.pixels[0]).toBe('#102030ff')
+    expect(historyStore.currentSnapshot?.pixels[0]).toBe(h('#102030ff'))
   })
 
   it('normalizes transparent fill on new documents', () => {
     const editorStore = useEditorStore()
 
-    editorStore.newDocument({ width: 2, height: 2, fill: '#00000000' })
+    editorStore.newDocument({ width: 2, height: 2, fill: 0 })
 
-    expect(editorStore.document.pixels).toEqual(Array(4).fill(EMPTY_PIXEL))
+    expect(editorStore.document.pixels).toEqual(new Uint32Array(4))
   })
 
   it('persists the draft immediately when newDocument requests it', () => {
@@ -111,10 +116,11 @@ describe('editor store', () => {
     editorStore.setGridVisible(false)
     editorStore.setPan({ x: 24, y: 12 })
 
+    const fill = h('#abcdef88')
     editorStore.newDocument({
       width: 3,
       height: 2,
-      fill: '#abcdef88',
+      fill,
       name: 'persisted-new',
       persistDraft: true,
     })
@@ -157,27 +163,19 @@ describe('editor store', () => {
     expect(historyStore.snapshots).toHaveLength(1)
   })
 
-  it('loadDocument normalizes transparent pixels into empty strings', () => {
+  it('loadDocument normalizes zero-alpha pixels to 0', () => {
     const editorStore = useEditorStore()
     const historyStore = useHistoryStore()
     const external = createEditorDocument({ width: 2, height: 2, name: 'loaded' })
 
-    external.pixels = ['#00000000', '#102030ff', '', '#ff00aa00']
+    external.pixels = new Uint32Array([0, h('#102030ff'), 0, 0])
 
     editorStore.loadDocument(external)
 
-    expect(editorStore.document.pixels).toEqual([
-      EMPTY_PIXEL,
-      '#102030ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-    ])
-    expect(historyStore.currentSnapshot?.pixels).toEqual([
-      EMPTY_PIXEL,
-      '#102030ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-    ])
+    expect(editorStore.document.pixels).toEqual(new Uint32Array([T, h('#102030ff'), T, T]))
+    expect(historyStore.currentSnapshot?.pixels).toEqual(
+      new Uint32Array([T, h('#102030ff'), T, T]),
+    )
   })
 
   it('replaceDocument resets view/history once and persists the normalized draft when requested', () => {
@@ -189,18 +187,15 @@ describe('editor store', () => {
     editorStore.setPan({ x: 50, y: -20 })
 
     const external = createEditorDocument({ width: 2, height: 2, name: 'replacement' })
-    external.pixels = ['#FF00AA00', '#abcdef88', '#010203ff', '#00000000']
+    external.pixels = new Uint32Array([T, h('#abcdef88'), h('#010203ff'), T])
 
     editorStore.replaceDocument(external, { persistDraft: true })
     external.metadata.name = 'mutated-after-replace'
-    external.pixels[1] = '#00000000'
+    external.pixels[1] = T
 
-    expect(editorStore.document.pixels).toEqual([
-      EMPTY_PIXEL,
-      '#abcdef88',
-      '#010203ff',
-      EMPTY_PIXEL,
-    ])
+    expect(editorStore.document.pixels).toEqual(
+      new Uint32Array([T, h('#abcdef88'), h('#010203ff'), T]),
+    )
     expect(editorStore.zoom).toBe(1)
     expect(editorStore.gridVisible).toBe(true)
     expect(editorStore.panOffset).toEqual({ x: 0, y: 0 })
@@ -233,7 +228,10 @@ describe('editor store', () => {
 
     editorStore.loadDocument(originalDocument)
     const malformed = createEditorDocument({ width: 4, height: 4, name: 'broken-long' })
-    malformed.pixels.push(EMPTY_PIXEL)
+    // Create a pixel array that is one element too long
+    const oversized = new Uint32Array(malformed.pixels.length + 1)
+    oversized.set(malformed.pixels)
+    malformed.pixels = oversized
 
     expect(() => editorStore.loadDocument(malformed)).toThrow(
       'Pixel array length must match document dimensions.',
@@ -247,30 +245,22 @@ describe('editor store', () => {
 
     editorStore.newDocument({ width: 4, height: 4 })
 
-    expect(() => editorStore.setPixels(Array(15).fill(EMPTY_PIXEL))).toThrow()
-    expect(() => editorStore.setPixels(Array(17).fill(EMPTY_PIXEL))).toThrow()
+    expect(() => editorStore.setPixels(new Uint32Array(15))).toThrow()
+    expect(() => editorStore.setPixels(new Uint32Array(17))).toThrow()
   })
 
-  it('setPixels normalizes transparent pixels before storing and snapshotting', () => {
+  it('setPixels normalizes zero-alpha pixels before storing and snapshotting', () => {
     const editorStore = useEditorStore()
     const historyStore = useHistoryStore()
 
     editorStore.newDocument({ width: 2, height: 2 })
 
-    editorStore.setPixels(['#00000000', '#abcdef88', '', '#00000000'])
+    editorStore.setPixels(new Uint32Array([T, h('#abcdef88'), T, T]))
 
-    expect(editorStore.document.pixels).toEqual([
-      EMPTY_PIXEL,
-      '#abcdef88',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-    ])
-    expect(historyStore.currentSnapshot?.pixels).toEqual([
-      EMPTY_PIXEL,
-      '#abcdef88',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-    ])
+    expect(editorStore.document.pixels).toEqual(new Uint32Array([T, h('#abcdef88'), T, T]))
+    expect(historyStore.currentSnapshot?.pixels).toEqual(
+      new Uint32Array([T, h('#abcdef88'), T, T]),
+    )
   })
 
   it('renameDocument updates the document name, updatedAt, and pushes history', () => {
@@ -310,26 +300,18 @@ describe('editor store', () => {
     const editorStore = useEditorStore()
 
     editorStore.newDocument({ width: 2, height: 2, name: 'undo-check' })
-    editorStore.setPixels(['#010203ff', EMPTY_PIXEL, EMPTY_PIXEL, EMPTY_PIXEL])
-    editorStore.setPixels(['#010203ff', '#aabbccdd', EMPTY_PIXEL, EMPTY_PIXEL])
+    editorStore.setPixels(new Uint32Array([h('#010203ff'), T, T, T]))
+    editorStore.setPixels(new Uint32Array([h('#010203ff'), h('#aabbccdd'), T, T]))
 
     editorStore.applyUndo()
     expect(editorStore.document.width).toBe(2)
     expect(editorStore.document.height).toBe(2)
     expect(editorStore.document.metadata.name).toBe('undo-check')
-    expect(editorStore.document.pixels).toEqual([
-      '#010203ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-    ])
+    expect(editorStore.document.pixels).toEqual(new Uint32Array([h('#010203ff'), T, T, T]))
 
     editorStore.applyRedo()
-    expect(editorStore.document.pixels).toEqual([
-      '#010203ff',
-      '#aabbccdd',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-    ])
+    expect(editorStore.document.pixels).toEqual(
+      new Uint32Array([h('#010203ff'), h('#aabbccdd'), T, T]),
+    )
   })
 })

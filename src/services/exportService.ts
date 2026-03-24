@@ -5,29 +5,29 @@
  * This source code is licensed under the GNU Affero General Public License v3.0
  * found in the LICENSE file in the root directory of this source tree.
  */
-import { parseHex } from './colorUtils'
-import {
-  DEFAULT_DOCUMENT_NAME,
-  DOCUMENT_VERSION,
-  EMPTY_PIXEL,
-  isTransparentPixel,
-  normalizeTransparentPixel,
-} from '../types'
+import { abgrToHex, isTransparentAbgr } from './colorUtils'
+import { DEFAULT_DOCUMENT_NAME, DOCUMENT_VERSION, EMPTY_PIXEL } from '../types'
 import type { EditorDocument } from '../types'
+
+interface SerializableDocument {
+  version: 1
+  width: number
+  height: number
+  pixels: string[]
+  metadata: { name: string; createdAt: string; updatedAt: string }
+}
 
 function normalizeDocumentName(name: string): string {
   const trimmed = name.trim()
   return trimmed.length > 0 ? trimmed : DEFAULT_DOCUMENT_NAME
 }
 
-function toSerializableDocument(document: EditorDocument): EditorDocument {
+function toSerializableDocument(document: EditorDocument): SerializableDocument {
   return {
     version: DOCUMENT_VERSION,
     width: document.width,
     height: document.height,
-    pixels: document.pixels.map(pixel =>
-      isTransparentPixel(pixel) ? EMPTY_PIXEL : normalizeTransparentPixel(pixel),
-    ),
+    pixels: Array.from(document.pixels, v => (isTransparentAbgr(v) ? EMPTY_PIXEL : abgrToHex(v))),
     metadata: {
       name: normalizeDocumentName(document.metadata.name),
       createdAt: document.metadata.createdAt,
@@ -79,12 +79,15 @@ export function documentToSvg(document: EditorDocument): string {
   ]
 
   for (let index = 0; index < document.pixels.length; index += 1) {
-    const pixel = normalizeTransparentPixel(document.pixels[index])
-    if (isTransparentPixel(pixel)) {
+    const value = document.pixels[index]!
+    if (isTransparentAbgr(value)) {
       continue
     }
 
-    const { r, g, b, a } = parseHex(pixel)
+    const r = value & 0xff
+    const g = (value >>> 8) & 0xff
+    const b = (value >>> 16) & 0xff
+    const a = (value >>> 24) & 0xff
     const x = index % document.width
     const y = Math.floor(index / document.width)
     const fill = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`

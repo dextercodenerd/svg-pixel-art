@@ -5,7 +5,6 @@
  * This source code is licensed under the GNU Affero General Public License v3.0
  * found in the LICENSE file in the root directory of this source tree.
  */
-import { normalizeTransparentPixel } from '../types'
 import type { BrushSize } from '../types'
 
 export interface PixelPoint {
@@ -22,20 +21,19 @@ function getBrushOrigin(col: number, row: number, brushSize: BrushSize): PixelPo
   }
 }
 
-function getPixelIndex(width: number, col: number, row: number): number {
+export function getPixelIndex(width: number, col: number, row: number): number {
   return row * width + col
 }
 
 export function stampBrushInto(
-  pixels: string[],
+  pixels: Uint32Array,
   width: number,
   height: number,
   col: number,
   row: number,
   brushSize: BrushSize,
-  color: string,
+  color: number,
 ): boolean {
-  const normalizedColor = normalizeTransparentPixel(color)
   const origin = getBrushOrigin(col, row, brushSize)
   const startCol = Math.max(0, origin.col)
   const startRow = Math.max(0, origin.row)
@@ -47,11 +45,11 @@ export function stampBrushInto(
   for (let currentRow = startRow; currentRow < endRow; currentRow += 1) {
     for (let currentCol = startCol; currentCol < endCol; currentCol += 1) {
       const index = getPixelIndex(width, currentCol, currentRow)
-      if (pixels[index] === normalizedColor) {
+      if (pixels[index] === color) {
         continue
       }
 
-      pixels[index] = normalizedColor
+      pixels[index] = color
       changed = true
     }
   }
@@ -60,15 +58,15 @@ export function stampBrushInto(
 }
 
 export function brushStamp(
-  pixels: string[],
+  pixels: Uint32Array,
   width: number,
   height: number,
   col: number,
   row: number,
   brushSize: BrushSize,
-  color: string,
-): string[] {
-  const nextPixels = [...pixels]
+  color: number,
+): Uint32Array {
+  const nextPixels = new Uint32Array(pixels)
   stampBrushInto(nextPixels, width, height, col, row, brushSize, color)
   return nextPixels
 }
@@ -108,32 +106,76 @@ export function collectStrokeIndices(
   return indices
 }
 
-export function applyColorAtIndices(pixels: string[], indices: number[], color: string): boolean {
-  const normalizedColor = normalizeTransparentPixel(color)
+export function collectRectangleIndices(
+  width: number,
+  height: number,
+  col0: number,
+  row0: number,
+  col1: number,
+  row1: number,
+  strokeWidth: number,
+  fillEnabled: boolean,
+): { stroke: number[]; fill: number[] } {
+  const minCol = Math.min(col0, col1)
+  const maxCol = Math.max(col0, col1)
+  const minRow = Math.min(row0, row1)
+  const maxRow = Math.max(row0, row1)
+
+  const strokeIndices: number[] = []
+  const fillIndices: number[] = []
+
+  for (let row = minRow; row <= maxRow; row++) {
+    for (let col = minCol; col <= maxCol; col++) {
+      if (col < 0 || row < 0 || col >= width || row >= height) {
+        continue
+      }
+
+      const isStroke =
+        col < minCol + strokeWidth ||
+        col > maxCol - strokeWidth ||
+        row < minRow + strokeWidth ||
+        row > maxRow - strokeWidth
+
+      const index = getPixelIndex(width, col, row)
+      if (isStroke) {
+        strokeIndices.push(index)
+      } else if (fillEnabled) {
+        fillIndices.push(index)
+      }
+    }
+  }
+
+  return { stroke: strokeIndices, fill: fillIndices }
+}
+
+export function applyColorAtIndices(
+  pixels: Uint32Array,
+  indices: number[],
+  color: number,
+): boolean {
   let changed = false
 
   for (const index of indices) {
-    if (pixels[index] === normalizedColor) {
+    if (pixels[index] === color) {
       continue
     }
 
-    pixels[index] = normalizedColor
+    pixels[index] = color
     changed = true
   }
 
   return changed
 }
 
-export function createPixelMask(length: number, indices: number[], color: string): string[] {
-  const normalizedColor = normalizeTransparentPixel(color)
-  const mask = Array<string>(length).fill('')
+export function createPixelMask(length: number, indices: number[], color: number): Uint32Array {
+  const mask = new Uint32Array(length)
 
-  if (normalizedColor === '') {
+  if (color === 0) {
     return mask
   }
 
   for (const index of indices) {
-    mask[index] = normalizedColor
+    mask[index] = color
   }
 
   return mask
@@ -176,29 +218,26 @@ export function bresenhamLine(
 }
 
 export function floodFill(
-  pixels: string[],
+  pixels: Uint32Array,
   width: number,
   height: number,
   col: number,
   row: number,
-  targetColor: string,
-  fillColor: string,
-): string[] {
-  const nextPixels = [...pixels]
+  targetColor: number,
+  fillColor: number,
+): Uint32Array {
+  const nextPixels = new Uint32Array(pixels)
 
   if (col < 0 || row < 0 || col >= width || row >= height) {
     return nextPixels
   }
 
-  const normalizedTarget = normalizeTransparentPixel(targetColor)
-  const normalizedFill = normalizeTransparentPixel(fillColor)
-
-  if (normalizedTarget === normalizedFill) {
+  if (targetColor === fillColor) {
     return nextPixels
   }
 
   const startIndex = getPixelIndex(width, col, row)
-  if (normalizeTransparentPixel(nextPixels[startIndex]) !== normalizedTarget) {
+  if (nextPixels[startIndex] !== targetColor) {
     return nextPixels
   }
 
@@ -216,11 +255,11 @@ export function floodFill(
 
     visited[index] = 1
 
-    if (normalizeTransparentPixel(nextPixels[index]) !== normalizedTarget) {
+    if (nextPixels[index] !== targetColor) {
       continue
     }
 
-    nextPixels[index] = normalizedFill
+    nextPixels[index] = fillColor
 
     const currentRow = Math.floor(index / width)
     const currentCol = index % width

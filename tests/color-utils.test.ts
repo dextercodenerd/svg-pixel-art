@@ -7,10 +7,13 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
+  abgrToHex,
   formatHex,
+  hexToAbgr,
   hexToAlpha,
   hexToRgb,
   hsvToRgb,
+  isTransparentAbgr,
   normalizeHexInput,
   parseHex,
   rgbToHsv,
@@ -84,5 +87,74 @@ describe('hsvToRgb', () => {
 
   it('treats negative hues by wrapping them into [0, 360)', () => {
     expect(hsvToRgb(-120, 1, 1)).toEqual(hsvToRgb(240, 1, 1))
+  })
+})
+
+describe('hexToAbgr', () => {
+  it('converts #rrggbbaa to ABGR uint32', () => {
+    // #ff000080 → r=255 g=0 b=0 a=128 → ABGR = (128<<24)|(0<<16)|(0<<8)|255
+    expect(hexToAbgr('#ff000080')).toBe(((128 << 24) | (0 << 16) | (0 << 8) | 255) >>> 0)
+  })
+
+  it('converts opaque black', () => {
+    // #000000ff → r=0 g=0 b=0 a=255 → ABGR = 0xff000000
+    expect(hexToAbgr('#000000ff')).toBe(0xff000000 >>> 0)
+  })
+
+  it('converts opaque white', () => {
+    // #ffffffff → all 0xff → 0xffffffff
+    expect(hexToAbgr('#ffffffff')).toBe(0xffffffff >>> 0)
+  })
+
+  it('returns 0 for null, undefined, and empty string', () => {
+    expect(hexToAbgr(null)).toBe(0)
+    expect(hexToAbgr(undefined)).toBe(0)
+    expect(hexToAbgr('')).toBe(0)
+  })
+
+  it('returns 0 for fully transparent colors', () => {
+    expect(hexToAbgr('#ff000000')).toBe(0)
+  })
+
+  it('handles mixed-case input', () => {
+    expect(hexToAbgr('#AABBCCDD')).toBe(hexToAbgr('#aabbccdd'))
+  })
+})
+
+describe('abgrToHex', () => {
+  it('converts ABGR uint32 back to hex string', () => {
+    const abgr = hexToAbgr('#33669980')
+    expect(abgrToHex(abgr!)).toBe('#33669980')
+  })
+
+  it('returns empty string for zero (transparent)', () => {
+    expect(abgrToHex(0)).toBe('')
+  })
+
+  it('returns empty string for any zero-alpha value', () => {
+    // Any value with alpha byte = 0 is transparent
+    expect(abgrToHex(0x00ff0000)).toBe('')
+  })
+
+  it('round-trips through hexToAbgr and abgrToHex', () => {
+    const colors = ['#d7263dff', '#f49d37ff', '#3f88c5ff', '#1a936fff', '#5f4bb6ff', '#c0b7b180']
+    for (const hex of colors) {
+      expect(abgrToHex(hexToAbgr(hex))).toBe(hex)
+    }
+  })
+})
+
+describe('isTransparentAbgr', () => {
+  it('returns true for 0', () => {
+    expect(isTransparentAbgr(0)).toBe(true)
+  })
+
+  it('returns true when alpha byte is 0 but other bytes are set', () => {
+    expect(isTransparentAbgr(0x00ffffff)).toBe(true)
+  })
+
+  it('returns false for any non-zero alpha', () => {
+    expect(isTransparentAbgr(0x01000000)).toBe(false)
+    expect(isTransparentAbgr(0xff000000 >>> 0)).toBe(false)
   })
 })

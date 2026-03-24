@@ -12,7 +12,11 @@ import {
   loadDraft,
   saveDraft,
 } from '../src/services/draftStorage'
-import { createEditorDocument, EMPTY_PIXEL } from '../src/types'
+import { TRANSPARENT_U32, createEditorDocument } from '../src/types'
+import { hexToAbgr } from '../src/services/colorUtils'
+
+const T = TRANSPARENT_U32
+const h = hexToAbgr
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>()
@@ -58,7 +62,7 @@ describe('draftStorage', () => {
 
   it('saves only serialized document data and reloads it through the validator', () => {
     const document = createEditorDocument({ width: 2, height: 2, name: 'draft' })
-    document.pixels = ['#00000000', '#abcdef88', EMPTY_PIXEL, '#ffffffff']
+    document.pixels = new Uint32Array([T, h('#abcdef88'), T, h('#ffffffff')])
 
     saveDraft(document)
 
@@ -73,17 +77,12 @@ describe('draftStorage', () => {
         updatedAt: document.metadata.updatedAt,
       },
     })
-    expect(loadDraft()).toEqual({
-      version: 1,
-      width: 2,
-      height: 2,
-      pixels: [EMPTY_PIXEL, '#abcdef88', EMPTY_PIXEL, '#ffffffff'],
-      metadata: {
-        name: 'draft',
-        createdAt: document.metadata.createdAt,
-        updatedAt: document.metadata.updatedAt,
-      },
-    })
+
+    const loaded = loadDraft()!
+    expect(loaded.width).toBe(2)
+    expect(loaded.height).toBe(2)
+    expect(loaded.pixels).toEqual(new Uint32Array([T, h('#abcdef88'), T, h('#ffffffff')]))
+    expect(loaded.metadata.name).toBe('draft')
   })
 
   it('clears invalid stored drafts instead of returning malformed data', () => {

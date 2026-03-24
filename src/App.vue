@@ -11,9 +11,9 @@ import EditorShell from './components/editor/EditorShell.vue'
 
 <template>
   <main
-    class="flex min-h-[100svh] bg-[var(--app-bg)] px-4 py-4 text-[var(--ink-strong)] sm:px-5 sm:py-5"
+    class="flex h-[100svh] w-screen overflow-hidden bg-[var(--app-bg)] px-2 py-2 text-[var(--ink-strong)] sm:px-3 sm:py-3"
   >
-    <div class="mx-auto w-full max-w-[1600px]">
+    <div class="mx-auto w-full h-full max-w-[1920px]">
       <EditorShell />
     </div>
   </main>

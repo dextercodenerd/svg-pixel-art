@@ -10,6 +10,10 @@ import { storeToRefs } from 'pinia'
 import { useColorStore } from '../../stores/color'
 import type { ActiveColorSlot } from '../../types'
 
+const props = defineProps<{
+  compact?: boolean
+}>()
+
 const colorStore = useColorStore()
 const { activeSlot } = storeToRefs(colorStore)
 
@@ -20,15 +24,22 @@ const slots: Array<{ id: ActiveColorSlot; label: string; detail: string }> = [
 </script>
 
 <template>
-  <section class="status-card">
-    <span class="status-label">Touch slot</span>
-    <strong class="status-value">{{ activeSlot.toUpperCase() }} active</strong>
-    <div class="segmented-control" role="group" aria-label="Active touch color slot">
+  <section :class="['status-card', compact && '!p-1 !gap-1']">
+    <template v-if="!compact">
+      <span class="status-label">Touch slot</span>
+      <strong class="status-value">{{ activeSlot.toUpperCase() }} active</strong>
+    </template>
+
+    <div
+      :class="['segmented-control', compact && 'segmented-control-vertical']"
+      role="group"
+      aria-label="Active touch color slot"
+    >
       <button
         v-for="slot in slots"
         :key="slot.id"
         type="button"
-        class="segmented-control-item"
+        :class="['segmented-control-item', compact && '!min-h-0 py-1.5 text-[10px]']"
         :data-active="slot.id === activeSlot"
         :aria-pressed="slot.id === activeSlot"
         @click="colorStore.setActiveSlot(slot.id)"
@@ -36,7 +47,8 @@ const slots: Array<{ id: ActiveColorSlot; label: string; detail: string }> = [
         {{ slot.label }}
       </button>
     </div>
-    <span class="status-detail">
+
+    <span v-if="!compact" class="status-detail">
       {{ slots.find(slot => slot.id === activeSlot)?.detail }}
     </span>
   </section>

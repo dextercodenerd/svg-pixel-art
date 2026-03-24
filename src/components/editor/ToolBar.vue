@@ -30,6 +30,7 @@ const tools: ToolOption[] = [
   { id: 'pencil', label: 'Pencil', shortcut: 'P' },
   { id: 'eraser', label: 'Eraser', shortcut: 'E' },
   { id: 'line', label: 'Line', shortcut: 'L' },
+  { id: 'rectangle', label: 'Rectangle', shortcut: 'R' },
   { id: 'fill', label: 'Fill', shortcut: 'F' },
   { id: 'eyedropper', label: 'Eyedropper', shortcut: 'I' },
 ]
@@ -49,75 +50,73 @@ const tools: ToolOption[] = [
           >
             <svg
               v-if="tool.id === 'pencil'"
-              viewBox="0 0 24 24"
+              viewBox="0 0 16 16"
               class="tool-icon"
+              style="shape-rendering: crispEdges"
               aria-hidden="true"
             >
               <path
-                d="M5 16.4 15.2 6.2l2.6 2.6L7.6 19H5zm11-11 1.3-1.3a1.5 1.5 0 0 1 2.1 0l.5.5a1.5 1.5 0 0 1 0 2.1L18.6 8z"
+                d="M10 2h4v4l-8 8H2v-4L10 2z m1 2h-1v1h1V4z M3 11h2v2H3v-2z"
                 fill="currentColor"
               />
             </svg>
             <svg
               v-else-if="tool.id === 'eraser'"
-              viewBox="0 0 24 24"
+              viewBox="0 0 16 16"
               class="tool-icon"
+              style="shape-rendering: crispEdges"
               aria-hidden="true"
             >
-              <path
-                d="m7.4 15.8 6.8-6.8 4.4 4.4-2.4 2.4H9.8zm7.7-7.7 1.8-1.8a1.9 1.9 0 0 1 2.6 0l1.2 1.2a1.9 1.9 0 0 1 0 2.6l-1.8 1.8z"
-                fill="currentColor"
-              />
-              <path
-                d="M4.5 18.5h10.2"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.8"
-              />
+              <path d="M10 2h4v4l-8 8H2v-4L10 2z" fill="currentColor" opacity="0.4" />
+              <path d="M6 6h4v4l-4 4H2v-4L6 6z" fill="currentColor" />
             </svg>
             <svg
               v-else-if="tool.id === 'line'"
-              viewBox="0 0 24 24"
+              viewBox="0 0 16 16"
               class="tool-icon"
+              style="shape-rendering: crispEdges"
               aria-hidden="true"
             >
-              <path
-                d="M5.5 17.5 17.5 5.5"
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="2.2"
-              />
-              <circle cx="5.5" cy="17.5" r="2.2" fill="currentColor" />
-              <circle cx="17.5" cy="5.5" r="2.2" fill="currentColor" />
+              <path d="M2 13h3L13 5V2h-3L2 10v3z" fill="currentColor" />
+              <rect x="2" y="11" width="3" height="3" fill="currentColor" />
+              <rect x="11" y="2" width="3" height="3" fill="currentColor" />
+            </svg>
+            <svg
+              v-else-if="tool.id === 'rectangle'"
+              viewBox="0 0 16 16"
+              class="tool-icon"
+              style="shape-rendering: crispEdges"
+              aria-hidden="true"
+            >
+              <path d="M2 2h12v12H2V2z m2 2v8h8V4H4z" fill="currentColor" />
             </svg>
             <svg
               v-else-if="tool.id === 'fill'"
-              viewBox="0 0 24 24"
+              viewBox="0 0 16 16"
               class="tool-icon"
+              style="shape-rendering: crispEdges"
+              aria-hidden="true"
+            >
+              <path d="M6 3h4v2h2v2h2v6H2v-6h2V5h2V3z" fill="currentColor" />
+              <path d="M4 9h8v4H4V9z" fill="currentColor" opacity="0.6" />
+              <rect x="2" y="10" width="2" height="2" fill="currentColor" />
+            </svg>
+            <svg
+              v-else
+              viewBox="0 0 16 16"
+              class="tool-icon"
+              style="shape-rendering: crispEdges"
               aria-hidden="true"
             >
               <path
-                d="m8 7.2 6.3 6.3-3.6 3.6a2.3 2.3 0 0 1-3.2 0l-2.8-2.8a2.3 2.3 0 0 1 0-3.2z"
+                d="M10 2h4v4l-5 5v3H6v-3l5-5z m1 2h-1v1h1V4z M7 10h2v2H7v-2z M3 13h2v2H3v-2z"
                 fill="currentColor"
               />
-              <path
-                d="M15.8 14.7c1.4 0 2.7 1.1 2.7 2.5 0 1.5-1.2 2.8-2.7 2.8s-2.7-1.3-2.7-2.8c0-1.4 1.3-2.5 2.7-2.5Z"
-                fill="currentColor"
-                opacity=".72"
-              />
-            </svg>
-            <svg v-else viewBox="0 0 24 24" class="tool-icon" aria-hidden="true">
-              <path
-                d="m8.2 5.4 4.2 4.2-1.3 1.3 2.1 2.1a2 2 0 0 1 0 2.9l-.4.4-4.9-4.9.4-.4a2 2 0 0 1 2.9 0l.1.1 1.3-1.3-4.2-4.2z"
-                fill="currentColor"
-              />
-              <circle cx="15.8" cy="17.1" r="2.4" fill="currentColor" opacity=".72" />
             </svg>
           </button>
         </TooltipTrigger>
         <TooltipPortal>
-          <TooltipContent side="top" :side-offset="10" class="editor-tooltip">
+          <TooltipContent side="bottom" :side-offset="10" class="editor-tooltip">
             {{ tool.label }} · {{ tool.shortcut }}
           </TooltipContent>
         </TooltipPortal>

@@ -248,7 +248,7 @@ onBeforeUnmount(() => {
       <div class="relative">
         <canvas
           ref="svCanvasRef"
-          class="block h-[184px] w-full rounded-[20px] border border-[var(--panel-border)]"
+          class="block h-[184px] w-full border-2 border-[var(--panel-border)]"
           style="touch-action: none"
           @pointerdown="startDrag('sv', $event)"
           @pointermove="continueDrag('sv', $event)"
@@ -267,7 +267,7 @@ onBeforeUnmount(() => {
       <div class="relative">
         <canvas
           ref="hueCanvasRef"
-          class="block h-5 w-full rounded-full border border-[var(--panel-border)]"
+          class="block w-full border-2 border-[var(--panel-border)] hue-slider-canvas"
           style="touch-action: none"
           @pointerdown="startDrag('hue', $event)"
           @pointermove="continueDrag('hue', $event)"

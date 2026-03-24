@@ -7,8 +7,10 @@
 -->
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useEventListener, useResizeObserver } from '@vueuse/core'
 import PixelCanvas from './PixelCanvas.vue'
+import PixelScrollbar from './PixelScrollbar.vue'
 import { useCanvasPointer } from '../../composables/useCanvasPointer'
 import { usePan } from '../../composables/usePan'
 import { useTouchViewport } from '../../composables/useTouchViewport'
@@ -16,6 +18,17 @@ import { useZoom } from '../../composables/useZoom'
 import { useEditorStore } from '../../stores/editor'
 import { shouldHandleViewportPanKeydown } from '../../utils/dom'
 import type { PanOffset } from '../../types'
+import { SCROLLBAR_SIZE, VIEWPORT_GUTTER } from '../../types'
+
+const hScrollVisible = computed(
+  () => canvasSize.value.width + VIEWPORT_GUTTER * 2 > viewportSize.value.width,
+)
+const vScrollVisible = computed(
+  () => canvasSize.value.height + VIEWPORT_GUTTER * 2 > viewportSize.value.height,
+)
+
+const marginEndX = computed(() => VIEWPORT_GUTTER + (vScrollVisible.value ? SCROLLBAR_SIZE : 0))
+const marginEndY = computed(() => VIEWPORT_GUTTER + (hScrollVisible.value ? SCROLLBAR_SIZE : 0))
 
 const emit = defineEmits<{
   cursorChange: [payload: { col: number | null; row: number | null }]
@@ -43,9 +56,24 @@ const {
   startPan,
   stopPan,
   updatePan,
+  setPanClamped,
 } = usePan({
   viewportRef,
   getCanvasSize,
+})
+
+const viewportSize = ref({ width: 0, height: 0 })
+const canvasSize = computed(() => getCanvasSize())
+
+useResizeObserver(viewportRef, entries => {
+  const entry = entries[0]
+  if (entry) {
+    viewportSize.value = {
+      width: entry.contentRect.width,
+      height: entry.contentRect.height,
+    }
+  }
+  clampCurrentPan(1, 'strict')
 })
 
 const touchViewport = useTouchViewport({
@@ -121,10 +149,14 @@ function zoomAtPointer(nextZoom: number, clientX: number, clientY: number) {
   zoomToLevel(nextZoom)
 
   editorStore.setPan(
-    clampPan({
-      x: cursorX - oldCol * renderScale.value,
-      y: cursorY - oldRow * renderScale.value,
-    }),
+    clampPan(
+      {
+        x: cursorX - oldCol * renderScale.value,
+        y: cursorY - oldRow * renderScale.value,
+      },
+      1,
+      'strict',
+    ),
   )
   canvasPointer.updateHoverState(clientX, clientY, 'mouse')
 }
@@ -180,7 +212,7 @@ function onWindowMouseMove(event: MouseEvent) {
     return
   }
 
-  updatePan(event.clientX, event.clientY)
+  updatePan(event.clientX, event.clientY, 1, 'strict')
 }
 
 function onWindowMouseUp(event: MouseEvent) {
@@ -213,62 +245,42 @@ function onWindowBlur() {
   touchViewport.cancelGesture()
 }
 
-let resizeObserver: ResizeObserver | null = null
+function onScrollbarXUpdate(newX: number) {
+  setPanClamped({ ...panOffset.value, x: newX }, 1, 'strict')
+}
+
+function onScrollbarYUpdate(newY: number) {
+  setPanClamped({ ...panOffset.value, y: newY }, 1, 'strict')
+}
+
+useEventListener(window, 'mousemove', onWindowMouseMove)
+useEventListener(window, 'mouseup', onWindowMouseUp)
+useEventListener(window, 'keydown', onWindowKeyDown)
+useEventListener(window, 'keyup', onWindowKeyUp)
+useEventListener(window, 'blur', onWindowBlur)
+
+// Touch and wheel listeners must be non-passive so we can call preventDefault().
+useEventListener(viewportRef, 'touchstart', onViewportTouchStart, { passive: false })
+useEventListener(viewportRef, 'touchmove', onViewportTouchMove, { passive: false })
+useEventListener(viewportRef, 'touchend', onViewportTouchEnd, { passive: false })
+useEventListener(viewportRef, 'touchcancel', onViewportTouchEnd, { passive: false })
+useEventListener(viewportRef, 'wheel', onViewportWheel, { passive: false })
 
 onMounted(() => {
-  window.addEventListener('mousemove', onWindowMouseMove)
-  window.addEventListener('mouseup', onWindowMouseUp)
-  window.addEventListener('keydown', onWindowKeyDown)
-  window.addEventListener('keyup', onWindowKeyUp)
-  window.addEventListener('blur', onWindowBlur)
-
-  if (viewportRef.value != null) {
-    resizeObserver = new ResizeObserver(() => {
-      clampCurrentPan()
-    })
-    resizeObserver.observe(viewportRef.value)
-
-    // Touch and wheel listeners must be non-passive so we can call preventDefault().
-    // Vue's template event bindings may register them as passive in some browsers,
-    // so we add them manually here to guarantee the flag.
-    viewportRef.value.addEventListener('touchstart', onViewportTouchStart, { passive: false })
-    viewportRef.value.addEventListener('touchmove', onViewportTouchMove, { passive: false })
-    viewportRef.value.addEventListener('touchend', onViewportTouchEnd, { passive: false })
-    viewportRef.value.addEventListener('touchcancel', onViewportTouchEnd, { passive: false })
-    viewportRef.value.addEventListener('wheel', onViewportWheel, { passive: false })
-  }
-
   resetForDocumentBounds()
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('mousemove', onWindowMouseMove)
-  window.removeEventListener('mouseup', onWindowMouseUp)
-  window.removeEventListener('keydown', onWindowKeyDown)
-  window.removeEventListener('keyup', onWindowKeyUp)
-  window.removeEventListener('blur', onWindowBlur)
-
-  if (viewportRef.value != null) {
-    viewportRef.value.removeEventListener('touchstart', onViewportTouchStart)
-    viewportRef.value.removeEventListener('touchmove', onViewportTouchMove)
-    viewportRef.value.removeEventListener('touchend', onViewportTouchEnd)
-    viewportRef.value.removeEventListener('touchcancel', onViewportTouchEnd)
-    viewportRef.value.removeEventListener('wheel', onViewportWheel)
-  }
-
-  resizeObserver?.disconnect()
 })
 
 watch([() => document.value.width, () => document.value.height], () => {
   resetForDocumentBounds()
   canvasPointer.cancelActiveInteraction()
   canvasPointer.clearHoverState()
+  clampCurrentPan(1, 'strict')
 })
 
 watch(
   () => zoom.value,
   () => {
-    clampCurrentPan()
+    clampCurrentPan(1, 'strict')
   },
 )
 
@@ -287,7 +299,7 @@ watch(
 <template>
   <div
     ref="viewportRef"
-    class="canvas-viewport relative min-h-[320px] flex-1 overflow-hidden rounded-[28px] border border-[var(--panel-border)] bg-[rgba(120,88,56,0.08)]"
+    class="canvas-viewport relative min-h-[320px] flex-1 overflow-hidden border-t-2 border-l-2 border-r-2 border-b-2 border-white border-r-[var(--panel-border-strong)] border-b-[var(--panel-border-strong)] bg-[rgba(120,88,56,0.08)]"
     :data-cursor-mode="viewportCursorMode"
     @auxclick.prevent
     @contextmenu.prevent
@@ -318,5 +330,34 @@ watch(
         />
       </div>
     </div>
+
+    <!-- Custom Scrollbars -->
+    <PixelScrollbar
+      orientation="horizontal"
+      :viewport-size="viewportSize.width"
+      :content-size="canvasSize.width"
+      :offset="panOffset.x"
+      :margin="VIEWPORT_GUTTER"
+      :margin-end="marginEndX"
+      :stop-at-corner="vScrollVisible"
+      @update:offset="onScrollbarXUpdate"
+    />
+    <PixelScrollbar
+      orientation="vertical"
+      :viewport-size="viewportSize.height"
+      :content-size="canvasSize.height"
+      :offset="panOffset.y"
+      :margin="VIEWPORT_GUTTER"
+      :margin-end="marginEndY"
+      :stop-at-corner="hScrollVisible"
+      @update:offset="onScrollbarYUpdate"
+    />
+
+    <!-- Corner box where scrollbars meet -->
+    <div
+      v-if="hScrollVisible && vScrollVisible"
+      class="absolute right-0 bottom-0 z-20 border-l border-t border-[var(--panel-border)] bg-[var(--panel-inner)]"
+      :style="{ width: `${SCROLLBAR_SIZE}px`, height: `${SCROLLBAR_SIZE}px` }"
+    />
   </div>
 </template>

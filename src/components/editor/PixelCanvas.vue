@@ -7,8 +7,7 @@
 -->
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { parseHex } from '../../services/colorUtils'
-import { BASE_PIXEL_SIZE, isTransparentPixel } from '../../types'
+import { BASE_PIXEL_SIZE } from '../../types'
 import type { EditorDocument, ZoomLevel } from '../../types'
 
 // Minimum renderScale (px per art pixel) at which the grid is dense enough to be useful.
@@ -26,7 +25,7 @@ const props = withDefaults(
     document: EditorDocument
     gridVisible: boolean
     previewMode?: 'overlay' | 'replace'
-    previewPixels?: string[] | null
+    previewPixels?: Uint32Array | null
     zoom: ZoomLevel
   }>(),
   {
@@ -80,34 +79,32 @@ function ensureCheckerboardPattern(context: CanvasRenderingContext2D): CanvasPat
 }
 
 /**
- * Fast path: write pixel RGBA values directly into an ImageData buffer and
- * flush via a single putImageData + drawImage, avoiding tens of thousands of
- * individual fillRect calls which saturate the 2D canvas command queue.
+ * Fast path: bulk-copy ABGR uint32 pixels into an ImageData buffer and
+ * flush via a single putImageData + drawImage, avoiding per-pixel string
+ * parsing entirely.
  *
- * This works for any canvas <= 256×256 (always the case for this editor).
+ * ABGR byte order matches RGBA in ImageData on little-endian (all modern hardware).
  */
 function drawPixelsFast(
   context: CanvasRenderingContext2D,
-  pixels: string[],
+  pixels: Uint32Array,
   width: number,
   height: number,
+  overlay = false,
 ) {
-  // Allocate a 1:1 ImageData (one pixel per document "pixel"), then scale via drawImage.
   const imageData = context.createImageData(width, height)
-  const data = imageData.data
+  const u32 = new Uint32Array(imageData.data.buffer)
 
-  for (let i = 0; i < pixels.length; i++) {
-    const pixel = pixels[i]
-    if (isTransparentPixel(pixel)) {
-      continue
+  if (overlay) {
+    // Overlay mode: only draw non-transparent pixels from the preview layer
+    for (let i = 0; i < pixels.length; i++) {
+      if (pixels[i] !== 0) {
+        u32[i] = pixels[i]!
+      }
     }
-
-    const { r, g, b, a } = parseHex(pixel)
-    const offset = i * 4
-    data[offset] = r
-    data[offset + 1] = g
-    data[offset + 2] = b
-    data[offset + 3] = a
+  } else {
+    // Full copy — single memcpy
+    u32.set(pixels)
   }
 
   // Write to an offscreen canvas so we can scale with drawImage (ImageData has no built-in scale).
@@ -207,7 +204,7 @@ function drawCanvas() {
     props.previewMode === 'replace' &&
     props.previewPixels != null &&
     props.previewPixels.length === props.document.pixels.length
-  const basePixels = shouldReplacePixels ? props.previewPixels : props.document.pixels
+  const basePixels = shouldReplacePixels ? props.previewPixels! : props.document.pixels
 
   drawPixelsFast(context, basePixels, props.document.width, props.document.height)
 
@@ -216,7 +213,7 @@ function drawCanvas() {
     props.previewPixels != null &&
     props.previewPixels.length === props.document.pixels.length
   ) {
-    drawPixelsFast(context, props.previewPixels, props.document.width, props.document.height)
+    drawPixelsFast(context, props.previewPixels, props.document.width, props.document.height, true)
   }
 
   // Only draw the grid when "pixels" are large enough that grid lines are visible

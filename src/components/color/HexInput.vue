@@ -6,11 +6,12 @@
   found in the LICENSE file in the root directory of this source tree.
 -->
 <script setup lang="ts">
-import { ref, useId, watch } from 'vue'
-import { normalizeHexInput } from '../../services/colorUtils'
+import { computed, ref, useId, watch } from 'vue'
+import { getContrastingTextHex, normalizeHexInput, parseHex } from '../../services/colorUtils'
 
 const props = defineProps<{
   modelValue: string
+  color?: string
 }>()
 
 const emit = defineEmits<{
@@ -23,13 +24,44 @@ const inputRef = ref<HTMLInputElement | null>(null)
 const inputValue = ref(props.modelValue)
 const isInvalid = ref(false)
 
+const inputStyle = computed(() => {
+  if (isInvalid.value) {
+    return undefined
+  }
+
+  const color = props.color ?? props.modelValue
+  try {
+    const { r, g, b, a } = parseHex(color)
+    const textHex = getContrastingTextHex(color)
+    const { r: tr, g: tg, b: tb } = parseHex(textHex)
+    return {
+      backgroundColor: `rgba(${r}, ${g}, ${b}, ${a / 255})`,
+      color: `rgb(${tr}, ${tg}, ${tb})`,
+    }
+  } catch {
+    return undefined
+  }
+})
+
 watch(
   () => props.modelValue,
   value => {
-    inputValue.value = value
+    if (normalizeHexInput(inputValue.value) !== value) {
+      inputValue.value = value
+    }
     isInvalid.value = false
   },
 )
+
+watch(inputValue, value => {
+  const normalized = normalizeHexInput(value)
+  if (normalized != null) {
+    isInvalid.value = false
+    if (normalized !== props.modelValue) {
+      emit('update:modelValue', normalized)
+    }
+  }
+})
 
 function commitValue() {
   const normalized = normalizeHexInput(inputValue.value)
@@ -63,29 +95,24 @@ defineExpose({
 
 <template>
   <div class="space-y-2">
-    <div class="flex items-center justify-between gap-3">
-      <label class="status-label" :for="inputId">Hex</label>
-      <span class="text-xs text-[var(--ink-muted)]">Accepts `#RRGGBB` or `#RRGGBBAA`</span>
+    <div class="color-preview-frame checkerboard-surface">
+      <input
+        :id="inputId"
+        ref="inputRef"
+        v-model="inputValue"
+        type="text"
+        spellcheck="false"
+        class="color-input"
+        :data-invalid="isInvalid"
+        :style="inputStyle"
+        :aria-describedby="hintId"
+        @blur="commitValue"
+        @keydown.enter.prevent="commitValue"
+        @keydown.esc.prevent="resetValue"
+      />
     </div>
-    <input
-      :id="inputId"
-      ref="inputRef"
-      v-model="inputValue"
-      type="text"
-      spellcheck="false"
-      class="color-input"
-      :data-invalid="isInvalid"
-      :aria-describedby="hintId"
-      @blur="commitValue"
-      @keydown.enter.prevent="commitValue"
-      @keydown.esc.prevent="resetValue"
-    />
-    <p :id="hintId" class="text-xs text-[var(--ink-soft)]">
-      {{
-        isInvalid
-          ? 'Enter 6 or 8 hex digits. Invalid input stays local until corrected.'
-          : '6-digit values expand to full opacity automatically.'
-      }}
+    <p v-if="isInvalid" :id="hintId" class="text-xs text-[var(--ink-soft)]">
+      Enter 6 or 8 hex digits. Invalid input stays local until corrected.
     </p>
   </div>
 </template>

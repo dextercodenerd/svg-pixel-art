@@ -10,69 +10,43 @@ import {
   applyColorAtIndices,
   bresenhamLine,
   brushStamp,
+  collectRectangleIndices,
   collectStrokeIndices,
   createPixelMask,
   floodFill,
 } from '../src/services/pixelOps'
-import { EMPTY_PIXEL } from '../src/types'
+import { hexToAbgr } from '../src/services/colorUtils'
+
+const T = 0 // transparent
+const h = hexToAbgr
 
 describe('brushStamp', () => {
   it('centers odd brush sizes around the target pixel', () => {
-    const pixels = Array(25).fill(EMPTY_PIXEL)
-    const stamped = brushStamp(pixels, 5, 5, 2, 2, 3, '#112233ff')
+    const pixels = new Uint32Array(25)
+    const color = h('#112233ff')
+    const stamped = brushStamp(pixels, 5, 5, 2, 2, 3, color)
 
-    expect(stamped).toEqual([
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#112233ff',
-      '#112233ff',
-      '#112233ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#112233ff',
-      '#112233ff',
-      '#112233ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#112233ff',
-      '#112233ff',
-      '#112233ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-    ])
-    expect(pixels).toEqual(Array(25).fill(EMPTY_PIXEL))
+    expect(stamped).toEqual(new Uint32Array([
+      T, T, T, T, T,
+      T, color, color, color, T,
+      T, color, color, color, T,
+      T, color, color, color, T,
+      T, T, T, T, T,
+    ]))
+    expect(pixels).toEqual(new Uint32Array(25))
   })
 
   it('uses top-left bias for even brush sizes and clamps to bounds', () => {
-    const pixels = Array(16).fill(EMPTY_PIXEL)
-    const stamped = brushStamp(pixels, 4, 4, 3, 3, 2, '#445566ff')
+    const pixels = new Uint32Array(16)
+    const color = h('#445566ff')
+    const stamped = brushStamp(pixels, 4, 4, 3, 3, 2, color)
 
-    expect(stamped).toEqual([
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#445566ff',
-    ])
+    expect(stamped).toEqual(new Uint32Array([
+      T, T, T, T,
+      T, T, T, T,
+      T, T, T, T,
+      T, T, T, color,
+    ]))
   })
 })
 
@@ -132,62 +106,57 @@ describe('bresenhamLine', () => {
 
 describe('floodFill', () => {
   it('fills 4-connected regions with exact color matches', () => {
-    const pixels = [
-      '#000000ff',
-      '#000000ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#000000ff',
-      EMPTY_PIXEL,
-      '#ffffffff',
-      '#ffffffff',
-      EMPTY_PIXEL,
-    ]
-
-    expect(floodFill(pixels, 3, 3, 0, 0, '#000000ff', '#ff0000ff')).toEqual([
-      '#ff0000ff',
-      '#ff0000ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#ff0000ff',
-      EMPTY_PIXEL,
-      '#ffffffff',
-      '#ffffffff',
-      EMPTY_PIXEL,
+    const black = h('#000000ff')
+    const white = h('#ffffffff')
+    const red = h('#ff0000ff')
+    const pixels = new Uint32Array([
+      black, black, T,
+      T,     black, T,
+      white, white, T,
     ])
+
+    expect(floodFill(pixels, 3, 3, 0, 0, black, red)).toEqual(new Uint32Array([
+      red, red, T,
+      T,   red, T,
+      white, white, T,
+    ]))
   })
 
-  it('treats empty and #00000000 as the same target color', () => {
-    const pixels = [EMPTY_PIXEL, '#00000000', '#112233ff', '#00000000']
+  it('fills transparent regions', () => {
+    const color = h('#112233ff')
+    const fill = h('#abcdef88')
+    const pixels = new Uint32Array([T, T, color, T])
 
-    expect(floodFill(pixels, 2, 2, 0, 0, '#00000000', '#abcdef88')).toEqual([
-      '#abcdef88',
-      '#abcdef88',
-      '#112233ff',
-      '#abcdef88',
-    ])
+    expect(floodFill(pixels, 2, 2, 0, 0, T, fill)).toEqual(
+      new Uint32Array([fill, fill, color, fill]),
+    )
   })
 
-  it('returns an unchanged clone when target and fill colors are equivalent', () => {
-    const pixels = [EMPTY_PIXEL, '#112233ff', EMPTY_PIXEL, '#00000000']
-    const filled = floodFill(pixels, 2, 2, 0, 0, EMPTY_PIXEL, '#00000000')
+  it('returns an unchanged clone when target and fill colors are the same', () => {
+    const color = h('#112233ff')
+    const pixels = new Uint32Array([T, color, T, T])
+    const filled = floodFill(pixels, 2, 2, 0, 0, T, T)
 
-    expect(filled).toEqual([EMPTY_PIXEL, '#112233ff', EMPTY_PIXEL, '#00000000'])
+    expect(filled).toEqual(new Uint32Array([T, color, T, T]))
     expect(filled).not.toBe(pixels)
   })
 
   it('returns an unchanged clone when the starting point is out of bounds', () => {
-    const pixels = Array<string>(4).fill('#ff0000ff')
-    const result = floodFill(pixels, 2, 2, -1, 0, '#ff0000ff', '#00ff00ff')
+    const red = h('#ff0000ff')
+    const green = h('#00ff00ff')
+    const pixels = new Uint32Array(4).fill(red)
+    const result = floodFill(pixels, 2, 2, -1, 0, red, green)
 
     expect(result).toEqual(pixels)
     expect(result).not.toBe(pixels)
   })
 
   it('returns an unchanged clone when the start pixel does not match the given target color', () => {
-    // Pixel at (0,0) is '#ff0000ff' but targetColor claims it is '#00ff00ff'
-    const pixels = Array<string>(4).fill('#ff0000ff')
-    const result = floodFill(pixels, 2, 2, 0, 0, '#00ff00ff', '#0000ffff')
+    const red = h('#ff0000ff')
+    const green = h('#00ff00ff')
+    const blue = h('#0000ffff')
+    const pixels = new Uint32Array(4).fill(red)
+    const result = floodFill(pixels, 2, 2, 0, 0, green, blue)
 
     expect(result).toEqual(pixels)
     expect(result).not.toBe(pixels)
@@ -200,22 +169,62 @@ describe('line helpers', () => {
   })
 
   it('builds a mask that only contains preview pixels for the pending line', () => {
-    expect(createPixelMask(6, [1, 4], '#000000a6')).toEqual([
-      EMPTY_PIXEL,
-      '#000000a6',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#000000a6',
-      EMPTY_PIXEL,
-    ])
+    const preview = h('#000000a6')
+    expect(createPixelMask(6, [1, 4], preview)).toEqual(
+      new Uint32Array([T, preview, T, T, preview, T]),
+    )
   })
 
   it('applies a real line color without touching unrelated pixels', () => {
-    const pixels = [EMPTY_PIXEL, '#00ff00ff', EMPTY_PIXEL, EMPTY_PIXEL]
+    const red = h('#ff0000ff')
+    const green = h('#00ff00ff')
+    const pixels = new Uint32Array([T, green, T, T])
 
-    const changed = applyColorAtIndices(pixels, [0, 2], '#ff0000ff')
+    const changed = applyColorAtIndices(pixels, [0, 2], red)
 
     expect(changed).toBe(true)
-    expect(pixels).toEqual(['#ff0000ff', '#00ff00ff', '#ff0000ff', EMPTY_PIXEL])
+    expect(pixels).toEqual(new Uint32Array([red, green, red, T]))
+  })
+})
+
+describe('rectangle helpers', () => {
+  it('collects a 1px stroke border and separate fill indices', () => {
+    expect(collectRectangleIndices(5, 5, 1, 1, 3, 3, 1, true)).toEqual({
+      stroke: [6, 7, 8, 11, 13, 16, 17, 18],
+      fill: [12],
+    })
+  })
+
+  it('normalizes reverse drag bounds before collecting indices', () => {
+    expect(collectRectangleIndices(5, 5, 3, 3, 1, 1, 1, true)).toEqual({
+      stroke: [6, 7, 8, 11, 13, 16, 17, 18],
+      fill: [12],
+    })
+  })
+
+  it('treats thick strokes as covering the full small rectangle before fill', () => {
+    expect(collectRectangleIndices(5, 5, 0, 0, 4, 4, 2, true)).toEqual({
+      stroke: [
+        0, 1, 2, 3, 4,
+        5, 6, 7, 8, 9,
+        10, 11, 13, 14,
+        15, 16, 17, 18, 19,
+        20, 21, 22, 23, 24,
+      ],
+      fill: [12],
+    })
+  })
+
+  it('clips out-of-bounds drags to valid document indices only', () => {
+    expect(collectRectangleIndices(3, 3, -1, -1, 1, 1, 1, true)).toEqual({
+      stroke: [1, 3, 4],
+      fill: [0],
+    })
+  })
+
+  it('returns disjoint stroke and fill indices', () => {
+    const { stroke, fill } = collectRectangleIndices(5, 5, 1, 1, 3, 3, 1, true)
+
+    expect(stroke.some(index => fill.includes(index))).toBe(false)
   })
 })

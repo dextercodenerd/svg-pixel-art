@@ -5,8 +5,8 @@
  * This source code is licensed under the GNU Affero General Public License v3.0
  * found in the LICENSE file in the root directory of this source tree.
  */
-import { onBeforeUnmount, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useEventListener } from '@vueuse/core'
 import { useColorStore } from '../stores/color'
 import { useEditorStore } from '../stores/editor'
 import { useZoom } from './useZoom'
@@ -66,11 +66,12 @@ export function createKeyboardShortcutHandler(actions: KeyboardShortcutActions) 
     }
 
     if (!commandModifier && !event.altKey) {
-      if (key === 'p' || key === 'e' || key === 'l' || key === 'f' || key === 'i') {
+      if (key === 'p' || key === 'e' || key === 'l' || key === 'r' || key === 'f' || key === 'i') {
         const toolMap: Record<string, ToolId> = {
           p: 'pencil',
           e: 'eraser',
           l: 'line',
+          r: 'rectangle',
           f: 'fill',
           i: 'eyedropper',
         }
@@ -161,11 +162,5 @@ export function createKeyboardShortcutHandler(actions: KeyboardShortcutActions) 
 export function useKeyboard(actions: KeyboardShortcutActions) {
   const onWindowKeyDown = createKeyboardShortcutHandler(actions)
 
-  onMounted(() => {
-    window.addEventListener('keydown', onWindowKeyDown)
-  })
-
-  onBeforeUnmount(() => {
-    window.removeEventListener('keydown', onWindowKeyDown)
-  })
+  useEventListener(window, 'keydown', onWindowKeyDown)
 }
