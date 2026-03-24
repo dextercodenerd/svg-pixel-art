@@ -94,8 +94,7 @@ export function createNewDocumentController(options: NewDocumentControllerOption
     return {
       width: resolvedWidth.value,
       height: resolvedHeight.value,
-      fill:
-        fillMode.value === 'transparent' ? 0 : hexToAbgr(normalizedFillColor.value),
+      fill: fillMode.value === 'transparent' ? 0 : hexToAbgr(normalizedFillColor.value),
       name: normalizedName.value,
     }
   }

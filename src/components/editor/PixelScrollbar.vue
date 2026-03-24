@@ -27,6 +27,9 @@ const emit = defineEmits<{
 const isDragging = ref(false)
 const dragStartMousePos = ref(0)
 const dragStartOffset = ref(0)
+let dragScrollableRange = 0
+let dragMaxThumbPos = 0
+let dragMargin = 0
 
 const trackLength = computed(() => props.viewportSize - (props.stopAtCorner ? SCROLLBAR_SIZE : 0))
 
@@ -62,6 +65,11 @@ function onMouseDown(event: MouseEvent) {
   dragStartMousePos.value = props.orientation === 'horizontal' ? event.clientX : event.clientY
   dragStartOffset.value = props.offset
 
+  const totalMargin = props.margin + props.marginEnd
+  dragScrollableRange = props.contentSize - props.viewportSize + totalMargin
+  dragMaxThumbPos = trackLength.value - thumbSize.value
+  dragMargin = props.margin
+
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
   event.preventDefault()
@@ -75,17 +83,9 @@ function onMouseMove(event: MouseEvent) {
   const currentMousePos = props.orientation === 'horizontal' ? event.clientX : event.clientY
   const deltaPx = currentMousePos - dragStartMousePos.value
 
-  const totalMargin = props.margin + props.marginEnd
-  const scrollableRange = props.contentSize - props.viewportSize + totalMargin
-  const maxThumbPos = trackLength.value - thumbSize.value
-
-  // deltaOffset / scrollableRange = -deltaPx / maxThumbPos
-  const deltaOffset = -(deltaPx / maxThumbPos) * scrollableRange
-  const minOffset = props.margin - scrollableRange
-  const nextOffset = Math.max(
-    minOffset,
-    Math.min(props.margin, dragStartOffset.value + deltaOffset),
-  )
+  const deltaOffset = -(deltaPx / dragMaxThumbPos) * dragScrollableRange
+  const minOffset = dragMargin - dragScrollableRange
+  const nextOffset = Math.max(minOffset, Math.min(dragMargin, dragStartOffset.value + deltaOffset))
 
   emit('update:offset', nextOffset)
 }

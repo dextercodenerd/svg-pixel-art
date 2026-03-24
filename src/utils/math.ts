@@ -17,3 +17,9 @@ export function clampByte(value: number): number {
 export function clampUnit(value: number): number {
   return Math.min(1, Math.max(0, value))
 }
+
+export function getPreviewBox(size: number): { offset: number; size: number } {
+  const unitSize = size * 3
+  const offset = (18 - unitSize) / 2
+  return { offset, size: unitSize }
+}

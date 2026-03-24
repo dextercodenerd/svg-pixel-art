@@ -14,6 +14,7 @@ import {
   collectStrokeIndices,
   createPixelMask,
   floodFill,
+  getPixelIndex,
   stampBrushInto,
 } from '../services/pixelOps'
 import { abgrToHex, applyAlphaToAbgr, hexToAbgr, isTransparentAbgr } from '../services/colorUtils'
@@ -79,10 +80,6 @@ interface UseCanvasPointerOptions {
   renderScale: Ref<number>
   spacePressed: Ref<boolean>
   viewportRef: Ref<HTMLElement | null>
-}
-
-function getDocumentIndex(width: number, col: number, row: number): number {
-  return row * width + col
 }
 
 function getBrushCursorTarget(col: number, row: number, size: number): CanvasCursor {
@@ -185,8 +182,14 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       return null
     }
 
-    hoverCell.value = point
     pointerInsideDocument.value = true
+
+    const prev = hoverCell.value
+    if (prev != null && prev.col === point.col && prev.row === point.row) {
+      return point
+    }
+
+    hoverCell.value = point
     cursor.value =
       activeTool.value === 'pencil' || activeTool.value === 'eraser'
         ? getBrushCursorTarget(point.col, point.row, brushSize.value)
@@ -216,7 +219,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
   }
 
   function sampleVisibleColor(col: number, row: number): string {
-    const value = document.value.pixels[getDocumentIndex(document.value.width, col, row)] ?? 0
+    const value = document.value.pixels[getPixelIndex(document.value.width, col, row)] ?? 0
     return isTransparentAbgr(value) ? TRANSPARENT : abgrToHex(value)
   }
 
@@ -311,8 +314,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
 
     const preview = new Uint32Array(session.basePixels.length)
     const strokePreviewColor = applyAlphaToAbgr(session.strokeColor, 0.65)
-    const fillPreviewColor =
-      session.fillColor === 0 ? 0 : applyAlphaToAbgr(session.fillColor, 0.65)
+    const fillPreviewColor = session.fillColor === 0 ? 0 : applyAlphaToAbgr(session.fillColor, 0.65)
 
     if (fillPreviewColor !== 0) {
       for (const index of fill) {
@@ -360,7 +362,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       applyColorAtIndices(nextPixels, activeSession.lineIndices, activeSession.color)
       editorStore.setPixels(nextPixels)
     } else if (activeSession.kind === 'rectangle' && activeSession.hasChanges) {
-      const nextPixels = new Uint32Array([...activeSession.basePixels])
+      const nextPixels = new Uint32Array(activeSession.basePixels)
       if (activeSession.fillColor !== 0) {
         applyColorAtIndices(nextPixels, activeSession.fillIndices, activeSession.fillColor)
       }
@@ -402,7 +404,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     const tool = activeTool.value
 
     if (tool === 'fill') {
-      const targetIndex = getDocumentIndex(document.value.width, point.col, point.row)
+      const targetIndex = getPixelIndex(document.value.width, point.col, point.row)
       const targetColor = document.value.pixels[targetIndex] ?? 0
       const fillColor = getStrokeColor(event.pointerType, event.button, tool)
 
@@ -464,12 +466,10 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       const fillColor =
         rectangleFillSlot.value === 'transparent'
           ? 0
-          : hexToAbgr(rectangleFillSlot.value === 'fg'
-            ? fg.value
-            : bg.value)
+          : hexToAbgr(rectangleFillSlot.value === 'fg' ? fg.value : bg.value)
 
       const session: RectangleSession = {
-        basePixels: new Uint32Array([...document.value.pixels]),
+        basePixels: new Uint32Array(document.value.pixels),
         currentPoint: point,
         fillColor,
         hasChanges: false,

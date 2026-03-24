@@ -9,21 +9,11 @@
 import { storeToRefs } from 'pinia'
 import { TooltipContent, TooltipPortal, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { useEditorStore } from '../../stores/editor'
+import { getPreviewBox } from '../../utils/math'
 import { BRUSH_SIZES } from '../../types'
-import type { BrushSize } from '../../types'
 
 const editorStore = useEditorStore()
 const { rectangleStrokeSlot, rectangleStrokeWidth, rectangleFillSlot } = storeToRefs(editorStore)
-
-function getPreviewBox(size: BrushSize) {
-  const unitSize = size * 3
-  const offset = (18 - unitSize) / 2
-
-  return {
-    offset,
-    size: unitSize,
-  }
-}
 </script>
 
 <template>

@@ -172,7 +172,7 @@ export async function pngToDocument(file: File): Promise<EditorDocument> {
     for (let i = 0; i < pixels.length; i++) {
       const value = u32[i]!
       // Normalize zero-alpha to 0
-      pixels[i] = (value >>> 24) === 0 ? 0 : value
+      pixels[i] = value >>> 24 === 0 ? 0 : value
     }
 
     const timestamp = createIsoTimestamp()

@@ -154,7 +154,7 @@ export function hexToAbgr(hex: string | null | undefined): number {
  * Returns '' (EMPTY_PIXEL) when the alpha byte is 0.
  */
 export function abgrToHex(value: number): string {
-  if ((value >>> 24) === 0) {
+  if (value >>> 24 === 0) {
     return ''
   }
 
@@ -168,7 +168,7 @@ export function abgrToHex(value: number): string {
 
 /** True when the alpha byte of an ABGR uint32 is 0. */
 export function isTransparentAbgr(value: number): boolean {
-  return (value >>> 24) === 0
+  return value >>> 24 === 0
 }
 
 export function hsvToRgb(h: number, s: number, v: number): RgbColor {

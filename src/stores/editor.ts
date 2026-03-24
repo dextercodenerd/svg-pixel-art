@@ -126,7 +126,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     // Normalize zero-alpha pixels to 0 in-place as a safety net.
     for (let i = 0; i < pixels.length; i++) {
-      if ((pixels[i]! >>> 24) === 0) {
+      if (pixels[i]! >>> 24 === 0) {
         pixels[i] = 0
       }
     }
@@ -206,7 +206,7 @@ export const useEditorStore = defineStore('editor', () => {
   function normalizeDocumentPixels(nextDocument: EditorDocument): EditorDocument {
     const pixels = new Uint32Array(nextDocument.pixels)
     for (let i = 0; i < pixels.length; i++) {
-      if ((pixels[i]! >>> 24) === 0) {
+      if (pixels[i]! >>> 24 === 0) {
         pixels[i] = 0
       }
     }

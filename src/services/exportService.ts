@@ -6,11 +6,7 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 import { abgrToHex, isTransparentAbgr } from './colorUtils'
-import {
-  DEFAULT_DOCUMENT_NAME,
-  DOCUMENT_VERSION,
-  EMPTY_PIXEL,
-} from '../types'
+import { DEFAULT_DOCUMENT_NAME, DOCUMENT_VERSION, EMPTY_PIXEL } from '../types'
 import type { EditorDocument } from '../types'
 
 interface SerializableDocument {
@@ -31,9 +27,7 @@ function toSerializableDocument(document: EditorDocument): SerializableDocument 
     version: DOCUMENT_VERSION,
     width: document.width,
     height: document.height,
-    pixels: Array.from(document.pixels, v =>
-      isTransparentAbgr(v) ? EMPTY_PIXEL : abgrToHex(v),
-    ),
+    pixels: Array.from(document.pixels, v => (isTransparentAbgr(v) ? EMPTY_PIXEL : abgrToHex(v))),
     metadata: {
       name: normalizeDocumentName(document.metadata.name),
       createdAt: document.metadata.createdAt,

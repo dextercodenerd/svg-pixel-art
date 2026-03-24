@@ -21,7 +21,7 @@ function getBrushOrigin(col: number, row: number, brushSize: BrushSize): PixelPo
   }
 }
 
-function getPixelIndex(width: number, col: number, row: number): number {
+export function getPixelIndex(width: number, col: number, row: number): number {
   return row * width + col
 }
 
@@ -148,7 +148,11 @@ export function collectRectangleIndices(
   return { stroke: strokeIndices, fill: fillIndices }
 }
 
-export function applyColorAtIndices(pixels: Uint32Array, indices: number[], color: number): boolean {
+export function applyColorAtIndices(
+  pixels: Uint32Array,
+  indices: number[],
+  color: number,
+): boolean {
   let changed = false
 
   for (const index of indices) {
