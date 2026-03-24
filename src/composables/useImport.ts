@@ -7,7 +7,7 @@
  */
 import { ref } from 'vue'
 import { requestConfirmation } from '../services/confirmationService'
-import { parseJsonDocument, pngToDocument } from '../services/importService'
+import { parseJsonDocument, pngToDocument, svgToDocument } from '../services/importService'
 import { useEditorStore } from '../stores/editor'
 import type { ComponentPublicInstance } from 'vue'
 
@@ -21,6 +21,7 @@ interface ImportControllerOptions {
   onImportSuccess?: () => void
   parseJson?: typeof parseJsonDocument
   parsePng?: typeof pngToDocument
+  parseSvg?: typeof svgToDocument
   replaceDocument?: ReturnType<typeof useEditorStore>['replaceDocument']
   requestReplacementConfirmation?: () => Promise<boolean>
 }
@@ -32,6 +33,7 @@ function isFileInputElement(value: unknown): value is FileInputLike {
 export function createImportController(options: ImportControllerOptions = {}) {
   const parseJson = options.parseJson ?? parseJsonDocument
   const parsePng = options.parsePng ?? pngToDocument
+  const parseSvg = options.parseSvg ?? svgToDocument
   const replaceDocument = options.replaceDocument
   const requestReplacementConfirmation =
     options.requestReplacementConfirmation ??
@@ -58,7 +60,11 @@ export function createImportController(options: ImportControllerOptions = {}) {
       return parsePng(file)
     }
 
-    throw new Error('Only .json and .png files are supported.')
+    if (name.endsWith('.svg')) {
+      return parseSvg(file)
+    }
+
+    throw new Error('Only .json, .png, and .svg files are supported.')
   }
 
   async function importFile(file: File) {

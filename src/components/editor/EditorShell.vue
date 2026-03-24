@@ -166,7 +166,7 @@ onMounted(() => {
         <input
           :ref="setFileInputElement"
           type="file"
-          accept=".json,.png"
+          accept=".json,.png,.svg"
           class="hidden"
           @change="onFileChange"
         />

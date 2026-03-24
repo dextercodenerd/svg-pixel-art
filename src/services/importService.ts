@@ -137,6 +137,84 @@ export function parseJsonDocument(raw: string): EditorDocument {
   return parseDocumentData(JSON.parse(raw) as unknown)
 }
 
+export async function svgToDocument(file: File): Promise<EditorDocument> {
+  const svgText = await file.text()
+
+  const parser = new DOMParser()
+  const svgDoc = parser.parseFromString(svgText, 'image/svg+xml')
+  const svgEl = svgDoc.documentElement
+
+  const rawWidth = parseFloat(svgEl.getAttribute('width') ?? '')
+  const rawHeight = parseFloat(svgEl.getAttribute('height') ?? '')
+  const viewBox = svgEl.getAttribute('viewBox')?.trim().split(/[\s,]+/)
+
+  const width = Math.round(
+    Number.isFinite(rawWidth) && rawWidth > 0
+      ? rawWidth
+      : viewBox != null && viewBox.length >= 4
+        ? parseFloat(viewBox[2]!)
+        : NaN,
+  )
+  const height = Math.round(
+    Number.isFinite(rawHeight) && rawHeight > 0
+      ? rawHeight
+      : viewBox != null && viewBox.length >= 4
+        ? parseFloat(viewBox[3]!)
+        : NaN,
+  )
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) {
+    throw new Error('SVG has no determinable dimensions.')
+  }
+
+  if (width > MAX_CANVAS_SIZE || height > MAX_CANVAS_SIZE) {
+    throw new Error(`SVG dimensions must be between 1 and ${MAX_CANVAS_SIZE} pixels.`)
+  }
+
+  const blob = new Blob([svgText], { type: 'image/svg+xml' })
+  const objectUrl = URL.createObjectURL(blob)
+
+  try {
+    const image = await loadImage(objectUrl)
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+
+    const context = canvas.getContext('2d', { willReadFrequently: true })
+    if (context == null) {
+      throw new Error('Canvas 2D context is unavailable.')
+    }
+
+    context.drawImage(image, 0, 0, width, height)
+
+    const imageData = context.getImageData(0, 0, width, height)
+    const pixels = new Uint32Array(width * height)
+
+    const u32 = new Uint32Array(imageData.data.buffer)
+    for (let i = 0; i < pixels.length; i++) {
+      const value = u32[i]!
+      pixels[i] = value >>> 24 === 0 ? 0 : value
+    }
+
+    const timestamp = createIsoTimestamp()
+
+    return {
+      version: DOCUMENT_VERSION,
+      width,
+      height,
+      pixels,
+      metadata: {
+        name: getFilenameStem(file.name),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
 export async function pngToDocument(file: File): Promise<EditorDocument> {
   const objectUrl = URL.createObjectURL(file)
 
