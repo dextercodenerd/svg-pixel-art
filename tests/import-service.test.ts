@@ -6,7 +6,12 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { parseJsonDocument, pngToDocument } from '../src/services/importService'
+import {
+  jpegToDocument,
+  parseJsonDocument,
+  pngToDocument,
+  svgToDocument,
+} from '../src/services/importService'
 import { DEFAULT_DOCUMENT_NAME, TRANSPARENT_U32 } from '../src/types'
 import { hexToAbgr } from '../src/services/colorUtils'
 
@@ -180,6 +185,192 @@ describe('pngToDocument', () => {
       await expect(pngToDocument(file)).rejects.toThrow(
         'PNG dimensions must be between 1 and 256 pixels.',
       )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
+
+describe('jpegToDocument', () => {
+  it('imports JPEG raster data through the shared image path', async () => {
+    const createObjectURL = vi.fn(() => 'blob:jpeg')
+    const revokeObjectURL = vi.fn()
+    const drawImage = vi.fn()
+    const getImageData = vi.fn(() => ({
+      data: new Uint8ClampedArray([9, 8, 7, 255, 6, 5, 4, 255]),
+    }))
+    const getContext = vi.fn(() => ({
+      drawImage,
+      getImageData,
+    }))
+    const createElement = vi.fn(() => ({
+      width: 0,
+      height: 0,
+      getContext,
+    }))
+
+    class MockImage {
+      width = 2
+      height = 1
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+
+      set src(_value: string) {
+        this.onload?.()
+      }
+    }
+
+    vi.stubGlobal('Image', MockImage)
+    vi.stubGlobal('URL', {
+      createObjectURL,
+      revokeObjectURL,
+    })
+    vi.stubGlobal('document', {
+      createElement,
+    })
+
+    try {
+      const file = new File(['jpeg'], 'photo.jpeg', { type: 'image/jpeg' })
+      const document = await jpegToDocument(file)
+
+      expect(document.width).toBe(2)
+      expect(document.height).toBe(1)
+      expect(document.pixels[0]).toBe(h('#090807ff'))
+      expect(document.pixels[1]).toBe(h('#060504ff'))
+      expect(document.metadata.name).toBe('photo')
+      expect(createObjectURL).toHaveBeenCalledWith(file)
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:jpeg')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('rejects oversized JPEG dimensions', async () => {
+    class OversizedImage {
+      width = 1
+      height = 257
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+
+      set src(_value: string) {
+        this.onload?.()
+      }
+    }
+
+    vi.stubGlobal('Image', OversizedImage)
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:jpeg-oversized'),
+      revokeObjectURL: vi.fn(),
+    })
+
+    try {
+      const file = new File(['jpeg'], 'oversized.jpg', { type: 'image/jpeg' })
+
+      await expect(jpegToDocument(file)).rejects.toThrow(
+        'JPEG dimensions must be between 1 and 256 pixels.',
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
+
+describe('svgToDocument', () => {
+  it('uses width and height from the SVG before rasterizing', async () => {
+    const createObjectURL = vi.fn(() => 'blob:svg')
+    const revokeObjectURL = vi.fn()
+    const drawImage = vi.fn()
+    const getImageData = vi.fn(() => ({
+      data: new Uint8ClampedArray([1, 2, 3, 255, 4, 5, 6, 0]),
+    }))
+    const getContext = vi.fn(() => ({
+      drawImage,
+      getImageData,
+    }))
+    const createElement = vi.fn(() => ({
+      width: 0,
+      height: 0,
+      getContext,
+    }))
+
+    class MockImage {
+      width = 99
+      height = 99
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+
+      set src(_value: string) {
+        this.onload?.()
+      }
+    }
+
+    class MockDOMParser {
+      parseFromString() {
+        return {
+          querySelector: vi.fn(() => null),
+          documentElement: {
+            getAttribute(attribute: string) {
+              if (attribute === 'width') {
+                return '2'
+              }
+
+              if (attribute === 'height') {
+                return '1'
+              }
+
+              return null
+            },
+          },
+        }
+      }
+    }
+
+    vi.stubGlobal('Image', MockImage)
+    vi.stubGlobal('DOMParser', MockDOMParser)
+    vi.stubGlobal('URL', {
+      createObjectURL,
+      revokeObjectURL,
+    })
+    vi.stubGlobal('document', {
+      createElement,
+    })
+
+    try {
+      const file = new File(['<svg width="2" height="1"></svg>'], 'vector.svg', {
+        type: 'image/svg+xml',
+      })
+      const document = await svgToDocument(file)
+
+      expect(document.width).toBe(2)
+      expect(document.height).toBe(1)
+      expect(document.pixels[0]).toBe(h('#010203ff'))
+      expect(document.pixels[1]).toBe(T)
+      expect(document.metadata.name).toBe('vector')
+      expect(drawImage).toHaveBeenCalled()
+      expect(getImageData).toHaveBeenCalledWith(0, 0, 2, 1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('rejects malformed SVG content', async () => {
+    class MockDOMParser {
+      parseFromString() {
+        return {
+          querySelector: vi.fn(() => ({ textContent: 'bad svg' })),
+          documentElement: {
+            getAttribute: vi.fn(() => null),
+          },
+        }
+      }
+    }
+
+    vi.stubGlobal('DOMParser', MockDOMParser)
+
+    try {
+      const file = new File(['<svg'], 'broken.svg', { type: 'image/svg+xml' })
+
+      await expect(svgToDocument(file)).rejects.toThrow('SVG could not be parsed.')
     } finally {
       vi.unstubAllGlobals()
     }

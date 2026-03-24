@@ -6,6 +6,7 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 import { hexToAbgr } from './colorUtils'
+import { rasterImageFileToDocument } from './rasterImportService'
 import {
   DEFAULT_DOCUMENT_NAME,
   DOCUMENT_VERSION,
@@ -118,77 +119,80 @@ function parseDocumentData(value: unknown): EditorDocument {
   }
 }
 
-function getFilenameStem(filename: string): string {
-  const basename = filename.replace(/\.[^./\\]+$/, '').trim()
-  return basename.length > 0 ? basename : DEFAULT_DOCUMENT_NAME
-}
+function getSvgDimensions(svgText: string): { width: number; height: number } {
+  const parser = new DOMParser()
+  const svgDoc = parser.parseFromString(svgText, 'image/svg+xml')
+  const parseError = svgDoc.querySelector('parsererror')
+  if (parseError != null) {
+    throw new Error('SVG could not be parsed.')
+  }
 
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
+  const svgEl = svgDoc.documentElement
+  const rawWidth = parseFloat(svgEl.getAttribute('width') ?? '')
+  const rawHeight = parseFloat(svgEl.getAttribute('height') ?? '')
+  const viewBox = svgEl
+    .getAttribute('viewBox')
+    ?.trim()
+    .split(/[\s,]+/)
 
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Failed to load PNG image.'))
-    image.src = url
-  })
+  const width = Math.round(
+    Number.isFinite(rawWidth) && rawWidth > 0
+      ? rawWidth
+      : viewBox != null && viewBox.length >= 4
+        ? parseFloat(viewBox[2]!)
+        : NaN,
+  )
+  const height = Math.round(
+    Number.isFinite(rawHeight) && rawHeight > 0
+      ? rawHeight
+      : viewBox != null && viewBox.length >= 4
+        ? parseFloat(viewBox[3]!)
+        : NaN,
+  )
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) {
+    throw new Error('SVG has no determinable dimensions.')
+  }
+
+  if (width > MAX_CANVAS_SIZE || height > MAX_CANVAS_SIZE) {
+    throw new Error(`SVG dimensions must be between 1 and ${MAX_CANVAS_SIZE} pixels.`)
+  }
+
+  return { width, height }
 }
 
 export function parseJsonDocument(raw: string): EditorDocument {
   return parseDocumentData(JSON.parse(raw) as unknown)
 }
 
+export async function svgToDocument(file: File): Promise<EditorDocument> {
+  const svgText = await file.text()
+  const { width, height } = getSvgDimensions(svgText)
+
+  return rasterImageFileToDocument({
+    blob: new Blob([svgText], { type: 'image/svg+xml' }),
+    filename: file.name,
+    dimensionsLabel: 'SVG',
+    loadErrorMessage: 'Failed to load SVG image.',
+    width,
+    height,
+  })
+}
+
 export async function pngToDocument(file: File): Promise<EditorDocument> {
-  const objectUrl = URL.createObjectURL(file)
+  return rasterImageFileToDocument({
+    blob: file,
+    filename: file.name,
+    dimensionsLabel: 'PNG',
+    loadErrorMessage: 'Failed to load PNG image.',
+  })
+}
 
-  try {
-    const image = await loadImage(objectUrl)
-
-    if (
-      image.width < 1 ||
-      image.height < 1 ||
-      image.width > MAX_CANVAS_SIZE ||
-      image.height > MAX_CANVAS_SIZE
-    ) {
-      throw new Error(`PNG dimensions must be between 1 and ${MAX_CANVAS_SIZE} pixels.`)
-    }
-
-    const canvas = document.createElement('canvas')
-    canvas.width = image.width
-    canvas.height = image.height
-
-    const context = canvas.getContext('2d', { willReadFrequently: true })
-    if (context == null) {
-      throw new Error('Canvas 2D context is unavailable.')
-    }
-
-    context.drawImage(image, 0, 0)
-
-    const imageData = context.getImageData(0, 0, image.width, image.height)
-    const pixels = new Uint32Array(image.width * image.height)
-
-    // Read ImageData as uint32 — on little-endian hardware, bytes are [R,G,B,A]
-    // which maps to ABGR uint32. This is our internal format.
-    const u32 = new Uint32Array(imageData.data.buffer)
-    for (let i = 0; i < pixels.length; i++) {
-      const value = u32[i]!
-      // Normalize zero-alpha to 0
-      pixels[i] = value >>> 24 === 0 ? 0 : value
-    }
-
-    const timestamp = createIsoTimestamp()
-
-    return {
-      version: DOCUMENT_VERSION,
-      width: image.width,
-      height: image.height,
-      pixels,
-      metadata: {
-        name: getFilenameStem(file.name),
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      },
-    }
-  } finally {
-    URL.revokeObjectURL(objectUrl)
-  }
+export async function jpegToDocument(file: File): Promise<EditorDocument> {
+  return rasterImageFileToDocument({
+    blob: file,
+    filename: file.name,
+    dimensionsLabel: 'JPEG',
+    loadErrorMessage: 'Failed to load JPEG image.',
+  })
 }

@@ -69,6 +69,24 @@ describe('createImportController', () => {
     expect(controller.importError.value).toBeNull()
   })
 
+  it('routes .jpg files to the JPEG parser', async () => {
+    const importedDocument = createEditorDocument({ width: 1, height: 1, name: 'photo' })
+    const parseJpeg = vi.fn(async () => importedDocument)
+    const replaceDocument = vi.fn()
+    const controller = createImportController({
+      parseJpeg,
+      replaceDocument,
+      requestReplacementConfirmation: vi.fn(async () => true),
+    })
+
+    await controller.importFile({
+      name: 'photo.jpg',
+    } as File)
+
+    expect(parseJpeg).toHaveBeenCalledTimes(1)
+    expect(replaceDocument).toHaveBeenCalledWith(importedDocument, { persistDraft: true })
+  })
+
   it('surfaces parse errors and clears the importing flag', async () => {
     const controller = createImportController({
       parseJson: vi.fn(() => {
@@ -81,6 +99,22 @@ describe('createImportController', () => {
     await controller.importFile(createJsonFile('broken.json'))
 
     expect(controller.importError.value).toBe('Broken file')
+    expect(controller.isImporting.value).toBe(false)
+  })
+
+  it('reports the expanded supported file types', async () => {
+    const controller = createImportController({
+      replaceDocument: vi.fn(),
+      requestReplacementConfirmation: vi.fn(async () => true),
+    })
+
+    await controller.importFile({
+      name: 'notes.txt',
+    } as File)
+
+    expect(controller.importError.value).toBe(
+      'Only .json, .png, .jpg, .jpeg, and .svg files are supported.',
+    )
     expect(controller.isImporting.value).toBe(false)
   })
 })
