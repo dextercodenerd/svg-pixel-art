@@ -190,7 +190,7 @@ const { rectangleStrokeSlot, rectangleStrokeWidth, rectangleFillSlot } = storeTo
   font-size: 8px;
   font-weight: bold;
   text-transform: uppercase;
-  color: var(--ink-weak);
+  color: var(--ink-muted);
   pointer-events: none;
 }
 
