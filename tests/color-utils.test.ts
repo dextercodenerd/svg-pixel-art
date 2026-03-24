@@ -164,6 +164,12 @@ describe('compositeSourceOverAbgr', () => {
     expect(compositeSourceOverAbgr(0, src)).toBe(src)
   })
 
+  it('canonicalizes hidden RGB bytes in transparent fast paths', () => {
+    expect(compositeSourceOverAbgr(0x00ffffff, 0)).toBe(0)
+    expect(compositeSourceOverAbgr(0, 0x00ffffff)).toBe(0)
+    expect(compositeSourceOverAbgr(0x00ffffff, 0x00abcdef)).toBe(0)
+  })
+
   it('composites 50% red over opaque blue to the expected blended value', () => {
     // src = #ff000080 → srcR=255, srcG=0, srcB=0, srcA=128
     // dst = #0000ffff → dstR=0, dstG=0, dstB=255, dstA=255
@@ -180,6 +186,7 @@ describe('compositeSourceOverAbgr', () => {
     const result = compositeSourceOverAbgr(dst, src)
     const outA = (result >>> 24) & 0xff
     expect(outA).toBeGreaterThan(128)
+    expect(result).toBe(0xc05500aa >>> 0)
   })
 
   it('is asymmetric: composite(A, B) !== composite(B, A)', () => {
@@ -201,6 +208,13 @@ describe('compositeSourceOverAbgr', () => {
     const result = compositeSourceOverAbgr(dst, src)
     const outA = (result >>> 24) & 0xff
     expect(outA).toBe(255)
+  })
+
+  it('matches the expected integer result for translucent source over translucent destination', () => {
+    const src = 0x21fe89e6 >>> 0
+    const dst = 0x04d72c6b >>> 0
+
+    expect(compositeSourceOverAbgr(dst, src)).toBe(0x24fa80da >>> 0)
   })
 })
 

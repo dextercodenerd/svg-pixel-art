@@ -243,16 +243,17 @@ export function applyAlphaToHex(hex: string, alpha: number): string {
  */
 export function compositeSourceOverAbgr(dst: number, src: number): number {
   const srcA = (src >>> 24) & 0xff
+  const normalizedSrc = srcA === 0 ? 0 : src
   if (srcA === 255) {
-    return src
+    return normalizedSrc
   }
   if (srcA === 0) {
-    return dst
+    return ((dst >>> 24) & 0xff) === 0 ? 0 : dst
   }
 
   const dstA = (dst >>> 24) & 0xff
   if (dstA === 0) {
-    return src
+    return normalizedSrc
   }
 
   const srcR = src & 0xff
@@ -263,13 +264,17 @@ export function compositeSourceOverAbgr(dst: number, src: number): number {
   const dstB = (dst >>> 16) & 0xff
 
   const invSrcA = 255 - srcA
-  const outA = srcA + (((dstA * invSrcA + 127) / 255) | 0)
-  const outR =
-    ((srcR * srcA + (((dstR * dstA * invSrcA + 127) / 255) | 0) + (outA >> 1)) / outA) | 0
-  const outG =
-    ((srcG * srcA + (((dstG * dstA * invSrcA + 127) / 255) | 0) + (outA >> 1)) / outA) | 0
-  const outB =
-    ((srcB * srcA + (((dstB * dstA * invSrcA + 127) / 255) | 0) + (outA >> 1)) / outA) | 0
+  const outAlphaNumerator = srcA * 255 + dstA * invSrcA
+  const outA = ((outAlphaNumerator + 127) / 255) | 0
+
+  const compositeChannel = (srcChannel: number, dstChannel: number) =>
+    ((srcChannel * srcA * 255 + dstChannel * dstA * invSrcA + (outAlphaNumerator >> 1)) /
+      outAlphaNumerator) |
+    0
+
+  const outR = compositeChannel(srcR, dstR)
+  const outG = compositeChannel(srcG, dstG)
+  const outB = compositeChannel(srcB, dstB)
 
   return ((outA << 24) | (outB << 16) | (outG << 8) | outR) >>> 0
 }
