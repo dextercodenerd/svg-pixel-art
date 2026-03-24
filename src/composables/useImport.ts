@@ -7,7 +7,12 @@
  */
 import { ref } from 'vue'
 import { requestConfirmation } from '../services/confirmationService'
-import { parseJsonDocument, pngToDocument, svgToDocument } from '../services/importService'
+import {
+  jpegToDocument,
+  parseJsonDocument,
+  pngToDocument,
+  svgToDocument,
+} from '../services/importService'
 import { useEditorStore } from '../stores/editor'
 import type { ComponentPublicInstance } from 'vue'
 
@@ -20,6 +25,7 @@ interface FileInputLike {
 interface ImportControllerOptions {
   onImportSuccess?: () => void
   parseJson?: typeof parseJsonDocument
+  parseJpeg?: typeof jpegToDocument
   parsePng?: typeof pngToDocument
   parseSvg?: typeof svgToDocument
   replaceDocument?: ReturnType<typeof useEditorStore>['replaceDocument']
@@ -32,6 +38,7 @@ function isFileInputElement(value: unknown): value is FileInputLike {
 
 export function createImportController(options: ImportControllerOptions = {}) {
   const parseJson = options.parseJson ?? parseJsonDocument
+  const parseJpeg = options.parseJpeg ?? jpegToDocument
   const parsePng = options.parsePng ?? pngToDocument
   const parseSvg = options.parseSvg ?? svgToDocument
   const replaceDocument = options.replaceDocument
@@ -60,11 +67,15 @@ export function createImportController(options: ImportControllerOptions = {}) {
       return parsePng(file)
     }
 
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+      return parseJpeg(file)
+    }
+
     if (name.endsWith('.svg')) {
       return parseSvg(file)
     }
 
-    throw new Error('Only .json, .png, and .svg files are supported.')
+    throw new Error('Only .json, .png, .jpg, .jpeg, and .svg files are supported.')
   }
 
   async function importFile(file: File) {
