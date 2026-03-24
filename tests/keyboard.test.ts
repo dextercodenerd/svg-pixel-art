@@ -10,6 +10,10 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createKeyboardShortcutHandler } from '../src/composables/useKeyboard'
 import { useColorStore } from '../src/stores/color'
 import { useEditorStore } from '../src/stores/editor'
+import { hexToAbgr } from '../src/services/colorUtils'
+
+const T = 0
+const h = hexToAbgr
 
 function createKeyboardEvent(
   key: string,
@@ -92,17 +96,17 @@ describe('createKeyboardShortcutHandler', () => {
     })
 
     editorStore.newDocument({ width: 2, height: 2 })
-    editorStore.setPixels(['#010203ff', '', '', ''])
-    editorStore.setPixels(['#010203ff', '#aabbccdd', '', ''])
+    editorStore.setPixels(new Uint32Array([h('#010203ff'), T, T, T]))
+    editorStore.setPixels(new Uint32Array([h('#010203ff'), h('#aabbccdd'), T, T]))
 
     const undoEvent = createKeyboardEvent('z', { ctrlKey: true })
     handler(undoEvent)
-    expect(editorStore.document.pixels).toEqual(['#010203ff', '', '', ''])
+    expect(editorStore.document.pixels).toEqual(new Uint32Array([h('#010203ff'), T, T, T]))
     expect(undoEvent.preventDefault).toHaveBeenCalledTimes(1)
 
     const redoEvent = createKeyboardEvent('z', { metaKey: true, shiftKey: true })
     handler(redoEvent)
-    expect(editorStore.document.pixels).toEqual(['#010203ff', '#aabbccdd', '', ''])
+    expect(editorStore.document.pixels).toEqual(new Uint32Array([h('#010203ff'), h('#aabbccdd'), T, T]))
     expect(redoEvent.preventDefault).toHaveBeenCalledTimes(1)
 
     const exportJsonEvent = createKeyboardEvent('s', { ctrlKey: true })

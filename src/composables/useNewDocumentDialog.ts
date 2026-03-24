@@ -6,9 +6,9 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 import { computed, ref } from 'vue'
-import { normalizeHexInput } from '../services/colorUtils'
+import { hexToAbgr, normalizeHexInput } from '../services/colorUtils'
 import { requestConfirmation } from '../services/confirmationService'
-import { DEFAULT_DOCUMENT_NAME, EMPTY_PIXEL, MAX_CANVAS_SIZE } from '../types'
+import { DEFAULT_DOCUMENT_NAME, MAX_CANVAS_SIZE } from '../types'
 
 export type NewDocumentPreset = '16' | '24' | '32' | '48' | 'custom'
 export type FillMode = 'transparent' | 'color'
@@ -16,7 +16,7 @@ export type FillMode = 'transparent' | 'color'
 export interface NewDocumentPayload {
   width: number
   height: number
-  fill: string
+  fill: number
   name: string
 }
 
@@ -95,7 +95,7 @@ export function createNewDocumentController(options: NewDocumentControllerOption
       width: resolvedWidth.value,
       height: resolvedHeight.value,
       fill:
-        fillMode.value === 'transparent' ? EMPTY_PIXEL : (normalizedFillColor.value ?? EMPTY_PIXEL),
+        fillMode.value === 'transparent' ? 0 : hexToAbgr(normalizedFillColor.value),
       name: normalizedName.value,
     }
   }

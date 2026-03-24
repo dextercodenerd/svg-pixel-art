@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useHistoryStore } from '../src/stores/history'
 import { MAX_HISTORY_SNAPSHOTS, createEditorDocument } from '../src/types'
+import { hexToAbgr } from '../src/services/colorUtils'
 
 describe('history store', () => {
   beforeEach(() => {
@@ -17,14 +18,15 @@ describe('history store', () => {
 
   it('resets to exactly one cloned snapshot', () => {
     const historyStore = useHistoryStore()
-    const document = createEditorDocument({ width: 8, height: 8, fill: '#11223344' })
+    const fill = hexToAbgr('#11223344')
+    const document = createEditorDocument({ width: 8, height: 8, fill })
 
     historyStore.resetWith(document)
-    document.pixels[0] = '#ffffffff'
+    document.pixels[0] = hexToAbgr('#ffffffff')
 
     expect(historyStore.snapshots).toHaveLength(1)
     expect(historyStore.index).toBe(0)
-    expect(historyStore.currentSnapshot?.pixels[0]).toBe('#11223344')
+    expect(historyStore.currentSnapshot?.pixels[0]).toBe(fill)
   })
 
   it('stores owned reset snapshots by reference but keeps undo and redo isolated on read', () => {

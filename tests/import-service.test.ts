@@ -7,7 +7,11 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseJsonDocument, pngToDocument } from '../src/services/importService'
-import { DEFAULT_DOCUMENT_NAME, EMPTY_PIXEL } from '../src/types'
+import { DEFAULT_DOCUMENT_NAME, TRANSPARENT_U32 } from '../src/types'
+import { hexToAbgr } from '../src/services/colorUtils'
+
+const T = TRANSPARENT_U32
+const h = hexToAbgr
 
 describe('parseJsonDocument', () => {
   beforeEach(() => {
@@ -34,7 +38,7 @@ describe('parseJsonDocument', () => {
       version: 1,
       width: 4,
       height: 1,
-      pixels: [EMPTY_PIXEL, EMPTY_PIXEL, EMPTY_PIXEL, '#aabbccdd'],
+      pixels: new Uint32Array([T, T, T, h('#aabbccdd')]),
       metadata: {
         name: 'imported',
         createdAt: '2026-03-10T12:00:00.000Z',
@@ -60,7 +64,7 @@ describe('parseJsonDocument', () => {
       version: 1,
       width: 1,
       height: 1,
-      pixels: ['#01020304'],
+      pixels: new Uint32Array([h('#01020304')]),
       metadata: {
         name: DEFAULT_DOCUMENT_NAME,
         createdAt: '2026-03-15T10:00:00.000Z',
@@ -97,7 +101,7 @@ describe('parseJsonDocument', () => {
 })
 
 describe('pngToDocument', () => {
-  it('normalizes alpha-zero pixels to empty strings', async () => {
+  it('normalizes alpha-zero pixels to transparent and reads RGBA correctly', async () => {
     const createObjectURL = vi.fn(() => 'blob:test')
     const revokeObjectURL = vi.fn()
     const drawImage = vi.fn()
@@ -140,7 +144,10 @@ describe('pngToDocument', () => {
 
       expect(document.width).toBe(2)
       expect(document.height).toBe(1)
-      expect(document.pixels).toEqual([EMPTY_PIXEL, '#11223380'])
+      // First pixel has alpha=0 → transparent (0)
+      // Second pixel: R=17, G=34, B=51, A=128 → ABGR uint32
+      expect(document.pixels[0]).toBe(T)
+      expect(document.pixels[1]).toBe(h('#11223380'))
       expect(document.metadata.name).toBe('alpha-test')
       expect(createObjectURL).toHaveBeenCalledWith(file)
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:test')

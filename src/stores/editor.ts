@@ -21,9 +21,7 @@ import {
   createEditorDocument,
   createIsoTimestamp,
   DEFAULT_DOCUMENT_NAME,
-  EMPTY_PIXEL,
   MAX_CANVAS_SIZE,
-  normalizeTransparentPixel,
 } from '../types'
 
 export const useEditorStore = defineStore('editor', () => {
@@ -64,7 +62,7 @@ export const useEditorStore = defineStore('editor', () => {
   function newDocument(options?: {
     width?: number
     height?: number
-    fill?: string
+    fill?: number
     name?: string
     persistDraft?: boolean
   }) {
@@ -76,7 +74,7 @@ export const useEditorStore = defineStore('editor', () => {
     const nextDocument = createEditorDocument({
       width,
       height,
-      fill: options?.fill ?? EMPTY_PIXEL,
+      fill: options?.fill ?? 0,
       name: options?.name,
     })
 
@@ -121,16 +119,16 @@ export const useEditorStore = defineStore('editor', () => {
     useHistoryStore().pushOwned(renamed)
   }
 
-  function setPixels(pixels: string[]) {
+  function setPixels(pixels: Uint32Array) {
     if (pixels.length !== document.value.width * document.value.height) {
       throw new Error('Pixel array length must match document dimensions.')
     }
 
-    // Build the new document in this scope -- each pixel is already expected to be valid
-    // by callers (the drawing compositor normalizes before calling setPixels).
-    // We normalize here as a safety net but do it in-place to avoid an extra copy.
+    // Normalize zero-alpha pixels to 0 in-place as a safety net.
     for (let i = 0; i < pixels.length; i++) {
-      pixels[i] = normalizeTransparentPixel(pixels[i])
+      if ((pixels[i]! >>> 24) === 0) {
+        pixels[i] = 0
+      }
     }
 
     const next: EditorDocument = {
@@ -206,9 +204,15 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function normalizeDocumentPixels(nextDocument: EditorDocument): EditorDocument {
+    const pixels = new Uint32Array(nextDocument.pixels)
+    for (let i = 0; i < pixels.length; i++) {
+      if ((pixels[i]! >>> 24) === 0) {
+        pixels[i] = 0
+      }
+    }
     return {
       ...nextDocument,
-      pixels: nextDocument.pixels.map(normalizeTransparentPixel),
+      pixels,
       metadata: { ...nextDocument.metadata },
     }
   }
