@@ -236,3 +236,9 @@ export function applyAlphaToHex(hex: string, alpha: number): string {
     return hex
   }
 }
+
+/** Replace the alpha byte of an ABGR uint32 with the given opacity (0–1). */
+export function applyAlphaToAbgr(value: number, alpha: number): number {
+  const a = clampByte(Math.round(alpha * 255))
+  return (value & 0x00ffffff) | (a << 24)
+}

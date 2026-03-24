@@ -186,7 +186,7 @@ describe('useCanvasPointer rectangle preview', () => {
 
     expect(historyStore.snapshots).toHaveLength(1)
     expect(canvasPointer.previewMode.value).toBe('overlay')
-    expect(canvasPointer.previewPixels.value).toEqual([
+    expect(canvasPointer.previewPixels.value).toEqual(new Uint32Array([
       h('#ff0000a6'),
       h('#ff0000a6'),
       h('#ff0000a6'),
@@ -203,13 +203,13 @@ describe('useCanvasPointer rectangle preview', () => {
       T,
       T,
       T,
-    ])
+    ]))
 
     canvasPointer.onPointerUp(moveEvent)
 
     expect(historyStore.snapshots).toHaveLength(2)
     expect(canvasPointer.previewPixels.value).toBeNull()
-    expect(editorStore.document.pixels).toEqual([
+    expect(editorStore.document.pixels).toEqual(new Uint32Array([
       h('#ff0000ff'),
       h('#ff0000ff'),
       h('#ff0000ff'),
@@ -226,7 +226,7 @@ describe('useCanvasPointer rectangle preview', () => {
       T,
       T,
       T,
-    ])
+    ]))
   })
 
   it('uses normalized bounds for reverse drags and keeps stroke over fill', () => {
@@ -278,7 +278,7 @@ describe('useCanvasPointer rectangle preview', () => {
     canvasPointer.onPointerUp(moveEvent)
 
     expect(historyStore.snapshots).toHaveLength(2)
-    expect(editorStore.document.pixels).toEqual([
+    expect(editorStore.document.pixels).toEqual(new Uint32Array([
       T,
       T,
       T,
@@ -295,7 +295,7 @@ describe('useCanvasPointer rectangle preview', () => {
       h('#00ff00ff'),
       h('#00ff00ff'),
       h('#00ff00ff'),
-    ])
+    ]))
   })
 
   it('does not rebuild the preview when the pointer stays within the same cell', () => {

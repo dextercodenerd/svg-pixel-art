@@ -16,8 +16,7 @@ import {
   floodFill,
   stampBrushInto,
 } from '../services/pixelOps'
-import { abgrToHex, hexToAbgr, isTransparentAbgr } from '../services/colorUtils'
-import { applyAlphaToHex } from '../services/colorUtils'
+import { abgrToHex, applyAlphaToAbgr, hexToAbgr, isTransparentAbgr } from '../services/colorUtils'
 import { useColorStore } from '../stores/color'
 import { useEditorStore } from '../stores/editor'
 import { TRANSPARENT } from '../types'
@@ -269,7 +268,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     previewPixels.value = createPixelMask(
       session.basePixels.length,
       lineIndices,
-      applyAlphaToHex(session.color, 0.65),
+      applyAlphaToAbgr(session.color, 0.65),
     )
     previewMode.value = 'overlay'
   }
@@ -310,12 +309,12 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     session.fillIndices = fill
     session.hasChanges = hasChanges
 
-    const preview = Array<string>(session.basePixels.length).fill('')
-    const strokePreviewColor = applyAlphaToHex(session.strokeColor, 0.65)
+    const preview = new Uint32Array(session.basePixels.length)
+    const strokePreviewColor = applyAlphaToAbgr(session.strokeColor, 0.65)
     const fillPreviewColor =
-      session.fillColor === 0 ? '' : applyAlphaToHex(session.fillColor, 0.65)
+      session.fillColor === 0 ? 0 : applyAlphaToAbgr(session.fillColor, 0.65)
 
-    if (fillPreviewColor !== '') {
+    if (fillPreviewColor !== 0) {
       for (const index of fill) {
         preview[index] = fillPreviewColor
       }
