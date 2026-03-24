@@ -5,14 +5,13 @@
  * This source code is licensed under the GNU Affero General Public License v3.0
  * found in the LICENSE file in the root directory of this source tree.
  */
-import { formatHex } from './colorUtils'
+import { hexToAbgr } from './colorUtils'
 import {
   DEFAULT_DOCUMENT_NAME,
   DOCUMENT_VERSION,
   EMPTY_PIXEL,
   MAX_CANVAS_SIZE,
   createIsoTimestamp,
-  normalizeTransparentPixel,
 } from '../types'
 import type { EditorDocument } from '../types'
 
@@ -30,16 +29,16 @@ function validateDimension(value: unknown, label: string): number {
   return value as number
 }
 
-function normalizeImportedPixel(value: unknown): string {
+function normalizeImportedPixelU32(value: unknown): number {
   if (value === EMPTY_PIXEL) {
-    return EMPTY_PIXEL
+    return 0
   }
 
   if (typeof value !== 'string' || !HEX_PIXEL_PATTERN.test(value)) {
     throw new Error('Pixels must be empty strings or #RRGGBBAA values.')
   }
 
-  return normalizeTransparentPixel(value)
+  return hexToAbgr(value)
 }
 
 function normalizeTimestamp(value: unknown): string | null {
@@ -105,11 +104,16 @@ function parseDocumentData(value: unknown): EditorDocument {
     throw new Error('Pixel array length must match width * height.')
   }
 
+  const pixels = new Uint32Array(width * height)
+  for (let i = 0; i < value.pixels.length; i++) {
+    pixels[i] = normalizeImportedPixelU32(value.pixels[i])
+  }
+
   return {
     version: DOCUMENT_VERSION,
     width,
     height,
-    pixels: value.pixels.map(normalizeImportedPixel),
+    pixels,
     metadata: normalizeMetadata(value.metadata),
   }
 }
@@ -159,20 +163,16 @@ export async function pngToDocument(file: File): Promise<EditorDocument> {
 
     context.drawImage(image, 0, 0)
 
-    const data = context.getImageData(0, 0, image.width, image.height).data
-    const pixels = new Array<string>(image.width * image.height)
+    const imageData = context.getImageData(0, 0, image.width, image.height)
+    const pixels = new Uint32Array(image.width * image.height)
 
-    for (let i = 0, pixelIndex = 0; i < data.length; i += 4, pixelIndex += 1) {
-      const alpha = data[i + 3] ?? 0
-      pixels[pixelIndex] =
-        alpha === 0
-          ? EMPTY_PIXEL
-          : formatHex({
-              r: data[i] ?? 0,
-              g: data[i + 1] ?? 0,
-              b: data[i + 2] ?? 0,
-              a: alpha,
-            })
+    // Read ImageData as uint32 — on little-endian hardware, bytes are [R,G,B,A]
+    // which maps to ABGR uint32. This is our internal format.
+    const u32 = new Uint32Array(imageData.data.buffer)
+    for (let i = 0; i < pixels.length; i++) {
+      const value = u32[i]!
+      // Normalize zero-alpha to 0
+      pixels[i] = (value >>> 24) === 0 ? 0 : value
     }
 
     const timestamp = createIsoTimestamp()

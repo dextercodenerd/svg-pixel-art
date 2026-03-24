@@ -12,7 +12,11 @@ import {
   documentToSvg,
   getDocumentFilename,
 } from '../src/services/exportService'
-import { createEditorDocument, EMPTY_PIXEL } from '../src/types'
+import { createEditorDocument } from '../src/types'
+import { hexToAbgr } from '../src/services/colorUtils'
+
+const T = 0
+const h = hexToAbgr
 
 describe('documentToJson', () => {
   it('normalizes all fully transparent pixels to empty strings and falls back blank names', () => {
@@ -21,7 +25,7 @@ describe('documentToJson', () => {
       height: 1,
       name: '   ',
     })
-    document.pixels = [EMPTY_PIXEL, '#ff00aa00', '#abcdef88']
+    document.pixels = new Uint32Array([T, T, h('#abcdef88')])
 
     expect(JSON.parse(documentToJson(document))).toEqual({
       version: 1,
@@ -38,7 +42,7 @@ describe('documentToJson', () => {
 
   it('serializes compact draft JSON without pretty-print whitespace', () => {
     const document = createEditorDocument({ width: 1, height: 2, name: 'draft' })
-    document.pixels = ['#abcdef88', '#ff00aa00']
+    document.pixels = new Uint32Array([h('#abcdef88'), T])
 
     expect(documentToCompactJson(document)).toBe(
       '{"version":1,"width":1,"height":2,"pixels":["#abcdef88",""],"metadata":{"name":"draft","createdAt":"' +
@@ -60,7 +64,7 @@ describe('documentToSvg', () => {
       height: 2,
       name: 'Alpha & <Title>',
     })
-    document.pixels = [EMPTY_PIXEL, '#11223380', '#ff00aa00', '#abcdef12']
+    document.pixels = new Uint32Array([T, h('#11223380'), T, h('#abcdef12')])
 
     const svg = documentToSvg(document)
 
@@ -78,7 +82,7 @@ describe('documentToSvg', () => {
 
   it('omits fill-opacity for fully opaque pixels', () => {
     const document = createEditorDocument({ width: 1, height: 1, name: 'opaque' })
-    document.pixels = ['#fedcbaff']
+    document.pixels = new Uint32Array([h('#fedcbaff')])
 
     expect(documentToSvg(document)).toContain(
       '<rect x="0" y="0" width="1" height="1" fill="#fedcba" />',

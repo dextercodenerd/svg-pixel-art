@@ -15,7 +15,7 @@ export interface EditorDocument {
   version: 1
   width: number
   height: number
-  pixels: string[]
+  pixels: Uint32Array
   metadata: DocumentMetadata
 }
 
@@ -40,6 +40,8 @@ export const EMPTY_PIXEL = ''
 export const DEFAULT_DOCUMENT_NAME = 'untitled-svg-pixel-art'
 export const DOCUMENT_VERSION = 1 as const
 export const MAX_PALETTE_SWATCHES = 32
+export const TRANSPARENT_U32 = 0
+
 export const DEFAULT_PALETTE_SWATCHES = [
   '#000000ff',
   '#ffffffff',
@@ -78,21 +80,23 @@ export function normalizeTransparentPixel(value: string | null | undefined): str
 export function cloneDocument(document: EditorDocument): EditorDocument {
   return {
     ...document,
-    pixels: [...document.pixels],
+    pixels: new Uint32Array(document.pixels),
     metadata: { ...document.metadata },
   }
 }
 
-export function createEmptyPixels(width: number, height: number, fill = EMPTY_PIXEL): string[] {
-  // Normalize once outside the loop -- the result is the same string for every cell
-  const normalizedFill = normalizeTransparentPixel(fill)
-  return Array<string>(width * height).fill(normalizedFill)
+export function createEmptyPixels(width: number, height: number, fill = 0): Uint32Array {
+  const pixels = new Uint32Array(width * height)
+  if (fill !== 0) {
+    pixels.fill(fill)
+  }
+  return pixels
 }
 
 export function createEditorDocument(options?: {
   width?: number
   height?: number
-  fill?: string
+  fill?: number
   name?: string
   timestamp?: string
 }): EditorDocument {
@@ -100,7 +104,7 @@ export function createEditorDocument(options?: {
   const height = options?.height ?? 16
   const timestamp = options?.timestamp ?? createIsoTimestamp()
   const name = options?.name ?? DEFAULT_DOCUMENT_NAME
-  const fill = normalizeTransparentPixel(options?.fill)
+  const fill = options?.fill ?? 0
 
   return {
     version: DOCUMENT_VERSION,

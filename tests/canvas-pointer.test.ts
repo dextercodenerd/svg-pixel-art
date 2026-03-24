@@ -12,7 +12,11 @@ import { LINE_PREVIEW_PIXEL, useCanvasPointer } from '../src/composables/useCanv
 import { useColorStore } from '../src/stores/color'
 import { useEditorStore } from '../src/stores/editor'
 import { useHistoryStore } from '../src/stores/history'
-import { BASE_PIXEL_SIZE, EMPTY_PIXEL, createEditorDocument } from '../src/types'
+import { BASE_PIXEL_SIZE, TRANSPARENT_U32, createEditorDocument } from '../src/types'
+import { hexToAbgr } from '../src/services/colorUtils'
+
+const T = TRANSPARENT_U32
+const h = hexToAbgr
 
 class FakeElement {
   private captured = new Set<number>()
@@ -61,24 +65,12 @@ describe('useCanvasPointer line preview', () => {
     const historyStore = useHistoryStore()
     const externalDocument = createEditorDocument({ width: 4, height: 4 })
 
-    externalDocument.pixels = [
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#112233ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#00ff00ff',
-    ]
+    externalDocument.pixels = new Uint32Array([
+      T, T, T, T,
+      T, h('#112233ff'), T, T,
+      T, T, T, T,
+      T, T, T, h('#00ff00ff'),
+    ])
 
     editorStore.loadDocument(externalDocument)
     editorStore.setTool('line')
@@ -119,49 +111,25 @@ describe('useCanvasPointer line preview', () => {
     canvasPointer.onPointerMove(moveEvent)
 
     expect(historyStore.snapshots).toHaveLength(1)
-    expect(editorStore.document.pixels[0]).toBe(EMPTY_PIXEL)
+    expect(editorStore.document.pixels[0]).toBe(T)
     expect(canvasPointer.previewMode.value).toBe('overlay')
-    expect(canvasPointer.previewPixels.value).toEqual([
-      LINE_PREVIEW_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      LINE_PREVIEW_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      LINE_PREVIEW_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-    ])
+    expect(canvasPointer.previewPixels.value).toEqual(new Uint32Array([
+      LINE_PREVIEW_PIXEL, T, T, T,
+      T, LINE_PREVIEW_PIXEL, T, T,
+      T, T, LINE_PREVIEW_PIXEL, T,
+      T, T, T, T,
+    ]))
 
     canvasPointer.onPointerUp(moveEvent)
 
     expect(historyStore.snapshots).toHaveLength(2)
     expect(canvasPointer.previewPixels.value).toBeNull()
-    expect(editorStore.document.pixels).toEqual([
-      '#ff0000ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#ff0000ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#ff0000ff',
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      EMPTY_PIXEL,
-      '#00ff00ff',
-    ])
+    expect(editorStore.document.pixels).toEqual(new Uint32Array([
+      h('#ff0000ff'), T, T, T,
+      T, h('#ff0000ff'), T, T,
+      T, T, h('#ff0000ff'), T,
+      T, T, T, h('#00ff00ff'),
+    ]))
   })
 })
 
@@ -206,7 +174,7 @@ describe('useCanvasPointer touch color slot behavior', () => {
     canvasPointer.onPointerDown(touchEvent)
     canvasPointer.onPointerUp(touchEvent)
 
-    expect(editorStore.document.pixels[0]).toBe('#ff00ffff')
+    expect(editorStore.document.pixels[0]).toBe(h('#ff00ffff'))
     expect(historyStore.snapshots).toHaveLength(2)
   })
 
@@ -243,7 +211,8 @@ describe('useCanvasPointer touch color slot behavior', () => {
 
     canvasPointer.onPointerDown(touchEvent)
 
-    expect(editorStore.document.pixels.every(pixel => pixel === '#00ffffff')).toBe(true)
+    const cyanU32 = h('#00ffffff')
+    expect(editorStore.document.pixels.every(pixel => pixel === cyanU32)).toBe(true)
   })
 
   it('samples into the active BG slot for touch eyedropper usage', () => {
@@ -251,7 +220,7 @@ describe('useCanvasPointer touch color slot behavior', () => {
     const colorStore = useColorStore()
 
     const document = createEditorDocument({ width: 4, height: 4 })
-    document.pixels[0] = '#123456ff'
+    document.pixels[0] = h('#123456ff')
 
     editorStore.loadDocument(document)
     editorStore.setTool('eyedropper')

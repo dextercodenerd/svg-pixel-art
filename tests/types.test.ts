@@ -10,11 +10,13 @@ import {
   DEFAULT_DOCUMENT_NAME,
   EMPTY_PIXEL,
   TRANSPARENT,
+  TRANSPARENT_U32,
   cloneDocument,
   createEditorDocument,
   isTransparentPixel,
   normalizeTransparentPixel,
 } from '../src/types'
+import { hexToAbgr } from '../src/services/colorUtils'
 
 describe('pixel transparency helpers', () => {
   it('treats empty, null, undefined, and any fully transparent hex as transparent', () => {
@@ -46,11 +48,10 @@ describe('isTransparentPixel', () => {
 })
 
 describe('createEditorDocument', () => {
-  it('creates a dense row-major document with normalized fill and metadata', () => {
+  it('creates a dense row-major document with transparent fill and metadata', () => {
     const document = createEditorDocument({
       width: 3,
       height: 2,
-      fill: TRANSPARENT,
       timestamp: '2026-03-13T15:00:00.000Z',
     })
 
@@ -58,7 +59,7 @@ describe('createEditorDocument', () => {
     expect(document.width).toBe(3)
     expect(document.height).toBe(2)
     expect(document.pixels).toHaveLength(6)
-    expect(document.pixels.every(pixel => pixel === EMPTY_PIXEL)).toBe(true)
+    expect(document.pixels.every(pixel => pixel === TRANSPARENT_U32)).toBe(true)
     expect(document.metadata).toEqual({
       name: DEFAULT_DOCUMENT_NAME,
       createdAt: '2026-03-13T15:00:00.000Z',
@@ -72,7 +73,7 @@ describe('createEditorDocument', () => {
     expect(document.width).toBe(16)
     expect(document.height).toBe(16)
     expect(document.pixels).toHaveLength(256)
-    expect(document.pixels.every(pixel => pixel === EMPTY_PIXEL)).toBe(true)
+    expect(document.pixels.every(pixel => pixel === TRANSPARENT_U32)).toBe(true)
     expect(document.metadata.name).toBe(DEFAULT_DOCUMENT_NAME)
   })
 })
@@ -82,10 +83,10 @@ describe('cloneDocument', () => {
     const original = createEditorDocument({ width: 2, height: 2 })
     const clone = cloneDocument(original)
 
-    clone.pixels[0] = '#ff0000ff'
+    clone.pixels[0] = hexToAbgr('#ff0000ff')
     clone.metadata.name = 'mutated'
 
-    expect(original.pixels[0]).toBe(EMPTY_PIXEL)
+    expect(original.pixels[0]).toBe(TRANSPARENT_U32)
     expect(original.metadata.name).toBe(DEFAULT_DOCUMENT_NAME)
   })
 })

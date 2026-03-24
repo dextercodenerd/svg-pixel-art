@@ -35,7 +35,7 @@ import { useConfirmationDialog } from '../../services/confirmationService'
 import { useColorStore } from '../../stores/color'
 import { useEditorStore } from '../../stores/editor'
 import { useHistoryStore } from '../../stores/history'
-import { BASE_PIXEL_SIZE, DEFAULT_DOCUMENT_NAME, EMPTY_PIXEL } from '../../types'
+import { BASE_PIXEL_SIZE, DEFAULT_DOCUMENT_NAME } from '../../types'
 
 const editorStore = useEditorStore()
 const colorStore = useColorStore()
@@ -118,7 +118,7 @@ onMounted(() => {
       editorStore.newDocument({
         width: 32,
         height: 32,
-        fill: EMPTY_PIXEL,
+        fill: 0,
         name: DEFAULT_DOCUMENT_NAME,
       })
     }

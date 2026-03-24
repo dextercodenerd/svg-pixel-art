@@ -7,6 +7,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 import { createNewDocumentController } from '../src/composables/useNewDocumentDialog'
+import { hexToAbgr } from '../src/services/colorUtils'
 
 describe('createNewDocumentController', () => {
   it('creates a preset-backed document with normalized fill and fallback name', async () => {
@@ -28,7 +29,7 @@ describe('createNewDocumentController', () => {
     expect(createDocument).toHaveBeenCalledWith({
       width: 48,
       height: 48,
-      fill: '#aabbccff',
+      fill: hexToAbgr('#aabbccff'),
       name: 'untitled-svg-pixel-art',
     })
   })

@@ -15,9 +15,10 @@ import {
   floodFill,
   stampBrushInto,
 } from '../services/pixelOps'
+import { abgrToHex, hexToAbgr, isTransparentAbgr } from '../services/colorUtils'
 import { useColorStore } from '../stores/color'
 import { useEditorStore } from '../stores/editor'
-import { EMPTY_PIXEL, TRANSPARENT, isTransparentPixel, normalizeTransparentPixel } from '../types'
+import { TRANSPARENT } from '../types'
 import type { ActiveColorSlot, PanOffset, ToolId } from '../types'
 import type { Ref } from 'vue'
 
@@ -34,11 +35,11 @@ interface CanvasCursor {
 
 type PreviewMode = 'overlay' | 'replace'
 
-export const LINE_PREVIEW_PIXEL = '#000000a6'
+export const LINE_PREVIEW_PIXEL = hexToAbgr('#000000a6')
 
 interface StrokeSession {
-  color: string
-  draftPixels: string[]
+  color: number
+  draftPixels: Uint32Array
   hasChanges: boolean
   kind: 'stroke'
   lastPoint: CanvasPoint
@@ -46,8 +47,8 @@ interface StrokeSession {
 }
 
 interface LineSession {
-  basePixels: string[]
-  color: string
+  basePixels: Uint32Array
+  color: number
   currentPoint: CanvasPoint
   hasChanges: boolean
   kind: 'line'
@@ -93,7 +94,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
   const pointerInsideDocument = ref(false)
   const pointerPosition = ref<{ x: number; y: number } | null>(null)
   const hoverPointerType = ref<string | null>(null)
-  const previewPixels = ref<string[] | null>(null)
+  const previewPixels = ref<Uint32Array | null>(null)
   const previewMode = ref<PreviewMode>('overlay')
 
   let activeSession: ActiveSession | null = null
@@ -175,16 +176,16 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     return point
   }
 
-  function getStrokeColor(pointerType: string, button: number, tool: ToolId): string {
+  function getStrokeColor(pointerType: string, button: number, tool: ToolId): number {
     if (tool === 'eraser') {
-      return EMPTY_PIXEL
+      return 0
     }
 
     if (pointerType === 'touch') {
-      return activeSlot.value === 'fg' ? fg.value : bg.value
+      return hexToAbgr(activeSlot.value === 'fg' ? fg.value : bg.value)
     }
 
-    return button === 2 ? bg.value : fg.value
+    return hexToAbgr(button === 2 ? bg.value : fg.value)
   }
 
   function getEyedropperSlot(pointerType: string, button: number): ActiveColorSlot {
@@ -196,16 +197,15 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
   }
 
   function sampleVisibleColor(col: number, row: number): string {
-    const pixel =
-      document.value.pixels[getDocumentIndex(document.value.width, col, row)] ?? EMPTY_PIXEL
-    return isTransparentPixel(pixel) ? TRANSPARENT : normalizeTransparentPixel(pixel)
+    const value = document.value.pixels[getDocumentIndex(document.value.width, col, row)] ?? 0
+    return isTransparentAbgr(value) ? TRANSPARENT : abgrToHex(value)
   }
 
   function applyStrokeSegment(
-    pixels: string[],
+    pixels: Uint32Array,
     from: CanvasPoint,
     to: CanvasPoint,
-    color: string,
+    color: number,
   ): boolean {
     let changed = false
 
@@ -235,11 +235,10 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       session.currentPoint.row,
       brushSize.value,
     )
-    const normalizedColor = normalizeTransparentPixel(session.color)
     let hasChanges = false
 
     for (const index of lineIndices) {
-      if (session.basePixels[index] !== normalizedColor) {
+      if (session.basePixels[index] !== session.color) {
         hasChanges = true
         break
       }
@@ -283,7 +282,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     }
 
     if (activeSession.kind === 'line' && activeSession.hasChanges) {
-      const nextPixels = [...activeSession.basePixels]
+      const nextPixels = new Uint32Array(activeSession.basePixels)
       applyColorAtIndices(nextPixels, activeSession.lineIndices, activeSession.color)
       editorStore.setPixels(nextPixels)
     } else if (activeSession.kind === 'stroke' && activeSession.hasChanges) {
@@ -323,10 +322,10 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
 
     if (tool === 'fill') {
       const targetIndex = getDocumentIndex(document.value.width, point.col, point.row)
-      const targetColor = document.value.pixels[targetIndex] ?? EMPTY_PIXEL
+      const targetColor = document.value.pixels[targetIndex] ?? 0
       const fillColor = getStrokeColor(event.pointerType, event.button, tool)
 
-      if (normalizeTransparentPixel(targetColor) === normalizeTransparentPixel(fillColor)) {
+      if (targetColor === fillColor) {
         return
       }
 
@@ -362,7 +361,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     if (tool === 'line') {
       const strokeColor = getStrokeColor(event.pointerType, event.button, tool)
       const session: LineSession = {
-        basePixels: [...document.value.pixels],
+        basePixels: new Uint32Array(document.value.pixels),
         color: strokeColor,
         currentPoint: point,
         hasChanges: false,
@@ -380,7 +379,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     }
 
     const strokeColor = getStrokeColor(event.pointerType, event.button, tool)
-    const draftPixels = [...document.value.pixels]
+    const draftPixels = new Uint32Array(document.value.pixels)
     const hasChanges = applyStrokeSegment(draftPixels, point, point, strokeColor)
 
     activeSession = {
