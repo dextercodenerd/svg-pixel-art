@@ -6,7 +6,8 @@
       "Bash(yarn test:*)",
       "Bash(yarn build:*)",
       "Bash(yarn format:*)",
-      "Bash(yarn format:check)"
+      "Bash(yarn format:check)",
+      "Bash(yarn lint:*)"
     ]
   }
 }

@@ -17,7 +17,13 @@ import {
   getPixelIndex,
   stampBrushInto,
 } from '../services/pixelOps'
-import { abgrToHex, applyAlphaToAbgr, hexToAbgr, isTransparentAbgr } from '../services/colorUtils'
+import {
+  abgrToHex,
+  applyAlphaToAbgr,
+  compositeSourceOverAbgr,
+  hexToAbgr,
+  isTransparentAbgr,
+} from '../services/colorUtils'
 import { useColorStore } from '../stores/color'
 import { useEditorStore } from '../stores/editor'
 import { TRANSPARENT } from '../types'
@@ -44,6 +50,7 @@ interface StrokeSession {
   kind: 'stroke'
   lastPoint: CanvasPoint
   pointerId: number
+  strokeMask: Uint8Array | null
 }
 
 interface LineSession {
@@ -228,6 +235,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     from: CanvasPoint,
     to: CanvasPoint,
     color: number,
+    strokeMask: Uint8Array | null,
   ): boolean {
     let changed = false
 
@@ -241,6 +249,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
           point.row,
           brushSize.value,
           color,
+          strokeMask,
         ) || changed
     }
 
@@ -260,7 +269,10 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     let hasChanges = false
 
     for (const index of lineIndices) {
-      if (session.basePixels[index] !== session.color) {
+      if (
+        session.basePixels[index] !==
+        compositeSourceOverAbgr(session.basePixels[index]!, session.color)
+      ) {
         hasChanges = true
         break
       }
@@ -293,7 +305,10 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     let hasChanges = false
 
     for (const index of stroke) {
-      if (session.basePixels[index] !== normalizedStroke) {
+      if (
+        session.basePixels[index] !==
+        compositeSourceOverAbgr(session.basePixels[index]!, normalizedStroke)
+      ) {
         hasChanges = true
         break
       }
@@ -301,7 +316,10 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
 
     if (!hasChanges && normalizedFill !== 0) {
       for (const index of fill) {
-        if (session.basePixels[index] !== normalizedFill) {
+        if (
+          session.basePixels[index] !==
+          compositeSourceOverAbgr(session.basePixels[index]!, normalizedFill)
+        ) {
           hasChanges = true
           break
         }
@@ -359,14 +377,14 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
 
     if (activeSession.kind === 'line' && activeSession.hasChanges) {
       const nextPixels = new Uint32Array(activeSession.basePixels)
-      applyColorAtIndices(nextPixels, activeSession.lineIndices, activeSession.color)
+      applyColorAtIndices(nextPixels, activeSession.lineIndices, activeSession.color, true)
       editorStore.setPixels(nextPixels)
     } else if (activeSession.kind === 'rectangle' && activeSession.hasChanges) {
       const nextPixels = new Uint32Array(activeSession.basePixels)
       if (activeSession.fillColor !== 0) {
-        applyColorAtIndices(nextPixels, activeSession.fillIndices, activeSession.fillColor)
+        applyColorAtIndices(nextPixels, activeSession.fillIndices, activeSession.fillColor, true)
       }
-      applyColorAtIndices(nextPixels, activeSession.strokeIndices, activeSession.strokeColor)
+      applyColorAtIndices(nextPixels, activeSession.strokeIndices, activeSession.strokeColor, true)
       editorStore.setPixels(nextPixels)
     } else if (activeSession.kind === 'stroke' && activeSession.hasChanges) {
       editorStore.setPixels(activeSession.draftPixels)
@@ -490,7 +508,9 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
 
     const strokeColor = getStrokeColor(event.pointerType, event.button, tool)
     const draftPixels = new Uint32Array(document.value.pixels)
-    const hasChanges = applyStrokeSegment(draftPixels, point, point, strokeColor)
+    const strokeMask =
+      tool === 'eraser' ? null : new Uint8Array(document.value.width * document.value.height)
+    const hasChanges = applyStrokeSegment(draftPixels, point, point, strokeColor, strokeMask)
 
     activeSession = {
       color: strokeColor,
@@ -499,6 +519,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       kind: 'stroke',
       lastPoint: point,
       pointerId: event.pointerId,
+      strokeMask,
     }
     previewPixels.value = draftPixels
     previewMode.value = 'replace'
@@ -524,6 +545,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
           activeSession.lastPoint,
           point,
           activeSession.color,
+          activeSession.strokeMask,
         ) || activeSession.hasChanges
       activeSession.lastPoint = point
       // draftPixels is mutated in-place, so re-assigning the same reference here does

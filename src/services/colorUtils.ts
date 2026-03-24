@@ -237,6 +237,43 @@ export function applyAlphaToHex(hex: string, alpha: number): string {
   }
 }
 
+/**
+ * Porter-Duff "source over" compositing in integer ABGR arithmetic.
+ * Draws src on top of dst and returns the blended ABGR uint32.
+ */
+export function compositeSourceOverAbgr(dst: number, src: number): number {
+  const srcA = (src >>> 24) & 0xff
+  if (srcA === 255) {
+    return src
+  }
+  if (srcA === 0) {
+    return dst
+  }
+
+  const dstA = (dst >>> 24) & 0xff
+  if (dstA === 0) {
+    return src
+  }
+
+  const srcR = src & 0xff
+  const srcG = (src >>> 8) & 0xff
+  const srcB = (src >>> 16) & 0xff
+  const dstR = dst & 0xff
+  const dstG = (dst >>> 8) & 0xff
+  const dstB = (dst >>> 16) & 0xff
+
+  const invSrcA = 255 - srcA
+  const outA = srcA + (((dstA * invSrcA + 127) / 255) | 0)
+  const outR =
+    ((srcR * srcA + (((dstR * dstA * invSrcA + 127) / 255) | 0) + (outA >> 1)) / outA) | 0
+  const outG =
+    ((srcG * srcA + (((dstG * dstA * invSrcA + 127) / 255) | 0) + (outA >> 1)) / outA) | 0
+  const outB =
+    ((srcB * srcA + (((dstB * dstA * invSrcA + 127) / 255) | 0) + (outA >> 1)) / outA) | 0
+
+  return ((outA << 24) | (outB << 16) | (outG << 8) | outR) >>> 0
+}
+
 /** Replace the alpha byte of an ABGR uint32 with the given opacity (0–1). */
 export function applyAlphaToAbgr(value: number, alpha: number): number {
   const a = clampByte(Math.round(alpha * 255))

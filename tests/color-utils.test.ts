@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   abgrToHex,
+  compositeSourceOverAbgr,
   formatHex,
   hexToAbgr,
   hexToAlpha,
@@ -141,6 +142,65 @@ describe('abgrToHex', () => {
     for (const hex of colors) {
       expect(abgrToHex(hexToAbgr(hex))).toBe(hex)
     }
+  })
+})
+
+describe('compositeSourceOverAbgr', () => {
+  const h = hexToAbgr
+
+  it('returns src unchanged when src is fully opaque', () => {
+    const src = h('#ff0000ff')
+    const dst = h('#0000ffff')
+    expect(compositeSourceOverAbgr(dst, src)).toBe(src)
+  })
+
+  it('returns dst unchanged when src is fully transparent', () => {
+    const dst = h('#0000ffff')
+    expect(compositeSourceOverAbgr(dst, 0)).toBe(dst)
+  })
+
+  it('returns src unchanged when dst is fully transparent', () => {
+    const src = h('#ff000080')
+    expect(compositeSourceOverAbgr(0, src)).toBe(src)
+  })
+
+  it('composites 50% red over opaque blue to the expected blended value', () => {
+    // src = #ff000080 → srcR=255, srcG=0, srcB=0, srcA=128
+    // dst = #0000ffff → dstR=0, dstG=0, dstB=255, dstA=255
+    // outA=255, outR=128, outG=0, outB=127
+    // ABGR = 0xff7f0080
+    const src = h('#ff000080')
+    const dst = h('#0000ffff')
+    expect(compositeSourceOverAbgr(dst, src)).toBe(0xff7f0080 >>> 0)
+  })
+
+  it('compositing 50% red over 50% blue produces alpha greater than either input', () => {
+    const src = h('#ff000080')
+    const dst = h('#0000ff80')
+    const result = compositeSourceOverAbgr(dst, src)
+    const outA = (result >>> 24) & 0xff
+    expect(outA).toBeGreaterThan(128)
+  })
+
+  it('is asymmetric: composite(A, B) !== composite(B, A)', () => {
+    const a = h('#ff000080')
+    const b = h('#0000ff80')
+    expect(compositeSourceOverAbgr(b, a)).not.toBe(compositeSourceOverAbgr(a, b))
+  })
+
+  it('handles near-edge alpha=1 without clamping errors', () => {
+    const src = ((1 << 24) | (255)) >>> 0  // near-transparent red
+    const dst = h('#0000ffff')
+    const result = compositeSourceOverAbgr(dst, src)
+    expect(result).toBeGreaterThan(0)
+  })
+
+  it('handles near-edge alpha=254 without clamping errors', () => {
+    const src = ((254 << 24) | (255)) >>> 0  // near-opaque red
+    const dst = h('#0000ffff')
+    const result = compositeSourceOverAbgr(dst, src)
+    const outA = (result >>> 24) & 0xff
+    expect(outA).toBe(255)
   })
 })
 
