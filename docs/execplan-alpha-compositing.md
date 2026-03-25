@@ -13,12 +13,15 @@ Currently, drawing with a semi-transparent color (e.g. 50% red) onto an existing
 
 A user can observe the change by: selecting a semi-transparent foreground color (e.g. `#ff000080`), drawing over an existing blue pixel, and seeing a blended purple-ish result instead of a flat semi-transparent red.
 
+Selecting a fully transparent paint color (alpha `00`) is an intentional no-op for pencil, line, and rectangle tools. Only the eraser deletes pixels. The UI should make this obvious in previews instead of silently committing nothing.
+
 ## Constraints
 
 - The pixel storage model stays as `Uint32Array` with one ABGR uint32 per pixel. No layers, no z-ordering.
 - Export/import formats remain unchanged. SVG export already handles `fill-opacity`; JSON round-trips `#RRGGBBAA`. No format version bump needed.
 - Maximum canvas size remains 256x256. All allocations must be bounded by this.
 - The eraser tool must continue to directly overwrite pixels to transparent (`0`), not composite.
+- Fully transparent paint colors on non-eraser tools remain no-ops. They do not delete existing pixels.
 - Flood fill must continue to replace (not composite) — standard pixel-art editor behavior.
 - Performance: one copy per operation, no per-pixel history pushes, draft buffer accumulated and committed once on `pointerup`. Follow all rules from `AGENTS.md`.
 - All existing tests must continue to pass (adjusting expected values where compositing changes behavior is acceptable, but only if the new behavior is intentionally correct).
@@ -45,6 +48,10 @@ A user can observe the change by: selecting a semi-transparent foreground color 
   Severity: low. Likelihood: medium.
   Mitigation: Use the standard `((x * 255 + 127) / 255) | 0` integer division trick. Accept ±1 difference from browser as normal for integer RGBA math.
 
+- Risk: Preview UX becomes misleading for very low-alpha or fully transparent paint colors.
+  Severity: medium. Likelihood: medium.
+  Mitigation: Scale preview opacity from the source alpha with a minimum floor, and show explicit no-op markers when the paint operation would commit nothing.
+
 ## Progress
 
 - [x] Stage A: Write failing tests for `compositeSourceOverAbgr`.
@@ -59,7 +66,7 @@ A user can observe the change by: selecting a semi-transparent foreground color 
 
 ## Surprises & discoveries
 
-(none yet)
+- Transparent paint colors on non-eraser tools are intentional no-ops, not an implicit erase mode. The preview UX needs to communicate that distinction clearly.
 
 ## Decision log
 
@@ -70,6 +77,10 @@ A user can observe the change by: selecting a semi-transparent foreground color 
 - Decision: Use a stroke mask (`Uint8Array`) rather than comparing `pixels[index] === color` to prevent re-compositing.
   Rationale: After compositing, the pixel value differs from the source color, so the old equality check would incorrectly allow re-compositing. The mask is cheap (64KB max) and exact.
   Date/Author: 2026-03-24.
+
+- Decision: Fully transparent paint colors on pencil/line/rectangle remain no-ops.
+  Rationale: Deletion stays the responsibility of the eraser tool. Paint tools with alpha `00` should preview as "nothing will be drawn" instead of silently behaving like erase.
+  Date/Author: 2026-03-25.
 
 ## Outcomes & retrospective
 
@@ -258,10 +269,11 @@ All must pass. If `yarn format:check` fails, run `yarn format` first.
 3. Paint over existing colored pixels — confirm blending occurs.
 4. Paint back and forth in one stroke — confirm no progressive darkening.
 5. Switch to eraser — confirm it clears to transparent.
-6. Draw a line with semi-transparent color over existing pixels — confirm compositing on commit.
-7. Draw a rectangle with semi-transparent stroke/fill — confirm compositing.
-8. Export to SVG — open in browser, confirm semi-transparent pixels render correctly.
-9. Export to JSON — reimport — confirm pixel values preserved exactly.
+6. Pick a fully transparent paint color on pencil/line/rectangle — confirm no pixels change and the preview communicates "nothing will be drawn".
+7. Draw a line with semi-transparent color over existing pixels — confirm compositing on commit.
+8. Draw a rectangle with semi-transparent stroke/fill — confirm compositing.
+9. Export to SVG — open in browser, confirm semi-transparent pixels render correctly.
+10. Export to JSON — reimport — confirm pixel values preserved exactly.
 
 ## Concrete steps
 
@@ -294,7 +306,7 @@ Quality criteria:
 - Tests: `yarn test` passes with all existing tests plus new compositing tests.
 - Lint/typecheck: `yarn lint` and `yarn build` (which runs `vue-tsc -b`) pass clean.
 - Format: `yarn format:check` passes.
-- Manual: the 9-step browser verification in Stage I produces expected results.
+- Manual: the 10-step browser verification in Stage I produces expected results.
 
 Quality method:
 

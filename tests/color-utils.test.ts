@@ -18,6 +18,7 @@ import {
   normalizeHexInput,
   parseHex,
   rgbToHsv,
+  toPreviewAbgr,
 } from '../src/services/colorUtils'
 
 describe('parseHex', () => {
@@ -215,6 +216,24 @@ describe('compositeSourceOverAbgr', () => {
     const dst = 0x04d72c6b >>> 0
 
     expect(compositeSourceOverAbgr(dst, src)).toBe(0x24fa80da >>> 0)
+  })
+})
+
+describe('toPreviewAbgr', () => {
+  it('returns transparent for fully transparent colors', () => {
+    expect(toPreviewAbgr(0)).toBe(0)
+  })
+
+  it('scales opaque colors down to the preview opacity', () => {
+    expect(toPreviewAbgr(hexToAbgr('#ff0000ff'))).toBe(hexToAbgr('#ff0000a6'))
+  })
+
+  it('scales semi-transparent colors using their source alpha', () => {
+    expect(toPreviewAbgr(hexToAbgr('#ff000080'))).toBe(hexToAbgr('#ff000053'))
+  })
+
+  it('keeps very low-alpha colors visible via the minimum preview alpha', () => {
+    expect(toPreviewAbgr(hexToAbgr('#ff000008'))).toBe(hexToAbgr('#ff000048'))
   })
 })
 

@@ -320,6 +320,7 @@ watch(
           :document="document"
           :grid-visible="gridVisible"
           :preview-mode="canvasPointer.previewMode.value"
+          :preview-noop-mask="canvasPointer.previewNoopMask.value"
           :preview-pixels="canvasPointer.previewPixels.value"
           :zoom="zoom"
           @contextmenu="canvasPointer.onContextMenu"

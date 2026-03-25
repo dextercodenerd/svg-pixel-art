@@ -237,6 +237,23 @@ export function applyAlphaToHex(hex: string, alpha: number): string {
   }
 }
 
+const PREVIEW_ALPHA_FACTOR = 0.65
+const PREVIEW_MIN_ALPHA = 72
+
+/**
+ * Convert a source color into a preview overlay color.
+ * Preserves RGB, scales the source alpha, and keeps a minimum visible opacity.
+ */
+export function toPreviewAbgr(value: number): number {
+  const sourceAlpha = (value >>> 24) & 0xff
+  if (sourceAlpha === 0) {
+    return 0
+  }
+
+  const previewAlpha = Math.max(PREVIEW_MIN_ALPHA, Math.round(sourceAlpha * PREVIEW_ALPHA_FACTOR))
+  return ((value & 0x00ffffff) | (previewAlpha << 24)) >>> 0
+}
+
 /**
  * Porter-Duff "source over" compositing in integer ABGR arithmetic.
  * Draws src on top of dst and returns the blended ABGR uint32.
