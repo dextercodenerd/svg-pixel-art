@@ -36,21 +36,13 @@ Selecting a fully transparent paint color (alpha `00`) is an intentional no-op f
 
 ## Risks
 
-- Risk: Existing tests that assert exact pixel values after drawing with opaque colors may break if the compositing path is accidentally used for opaque colors.
-  Severity: medium. Likelihood: low.
-  Mitigation: The compositing function's fast path returns `src` unchanged when `srcA === 255`, so opaque drawing produces identical results. Verify with existing tests.
-
-- Risk: Stroke accumulation — dragging back and forth over a pixel in one stroke progressively darkens it.
-  Severity: high. Likelihood: certain without mitigation.
-  Mitigation: A per-stroke `Uint8Array` mask tracks which pixels have already been composited in the current stroke. Subsequent touches are no-ops.
-
-- Risk: Integer rounding in the compositing formula produces off-by-one color differences vs. browser canvas compositing.
+- Risk: Integer compositing math can still produce edge-case differences vs. browser canvas compositing, especially around rounding and transparent-input handling.
   Severity: low. Likelihood: medium.
-  Mitigation: Use the standard `((x * 255 + 127) / 255) | 0` integer division trick. Accept ±1 difference from browser as normal for integer RGBA math.
+  Mitigation: Use the current normalized integer formula, including transparent fast paths, and accept small ±1 channel differences from browser canvas compositing as normal for integer RGBA math.
 
-- Risk: Preview UX becomes misleading for very low-alpha or fully transparent paint colors.
-  Severity: medium. Likelihood: medium.
-  Mitigation: Scale preview opacity from the source alpha with a minimum floor, and show explicit no-op markers when the paint operation would commit nothing.
+- Risk: Preview readability can still be imperfect for very low-alpha paint colors or no-op markers at some zoom levels.
+  Severity: low. Likelihood: medium.
+  Mitigation: Scale preview opacity from the source alpha with a minimum floor, show explicit no-op markers when the paint operation would commit nothing, and verify readability manually in the browser at multiple zoom levels.
 
 ## Progress
 
@@ -62,7 +54,7 @@ Selecting a fully transparent paint color (alpha `00`) is an intentional no-op f
 - [x] Stage F: Wire up compositing in `useCanvasPointer.ts`, make tests green.
 - [x] Stage G: Update `hasChanges` detection in line/rectangle previews.
 - [x] Stage H: Run full validation suite (`yarn test`, `yarn lint`, `yarn build`, `yarn format:check`).
-- [ ] Stage I: Manual verification in browser.
+- [x] Stage I: Manual verification in browser.
 
 ## Surprises & discoveries
 
@@ -80,6 +72,10 @@ Selecting a fully transparent paint color (alpha `00`) is an intentional no-op f
 
 - Decision: Fully transparent paint colors on pencil/line/rectangle remain no-ops.
   Rationale: Deletion stays the responsibility of the eraser tool. Paint tools with alpha `00` should preview as "nothing will be drawn" instead of silently behaving like erase.
+  Date/Author: 2026-03-25.
+
+- Decision: Remove the opaque-color regression risk from this ExecPlan.
+  Rationale: The current implementation and tests already prove that fully opaque source colors replace the destination as intended, so this is no longer an active project risk.
   Date/Author: 2026-03-25.
 
 ## Outcomes & retrospective
