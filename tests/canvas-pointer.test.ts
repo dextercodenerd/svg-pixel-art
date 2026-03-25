@@ -557,6 +557,85 @@ describe('useCanvasPointer rectangle preview', () => {
     expect(editorStore.document.pixels[5]).toBe(blue)
   })
 
+  it('shows no-op markers for transparent stroke and renders fill preview for opaque fill', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+
+    editorStore.loadDocument(createEditorDocument({ width: 4, height: 4 }))
+    editorStore.setTool('rectangle')
+    editorStore.setRectangleStrokeSlot('fg')
+    editorStore.setRectangleStrokeWidth(1)
+    editorStore.setRectangleFillSlot('bg')
+    colorStore.setFg('#ff000000') // transparent stroke
+    colorStore.setBg('#0000ffff') // opaque fill
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    // Draw rectangle from pixel (0,0) to pixel (2,2)
+    // BASE_PIXEL_SIZE=8: clientX=4 → col=0, clientX=20 → col=2
+    const startEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 40,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const moveEvent = {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+      currentTarget: canvasTarget,
+      pointerId: 40,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(startEvent)
+    canvasPointer.onPointerMove(moveEvent)
+
+    // Stroke is transparent → no preview pixels at stroke border, but noop mask covers them.
+    // Fill is opaque → fill interior pixel gets preview alpha.
+    // Stroke indices for 3×3 rect with strokeWidth=1: [0,1,2,4,6,8,9,10]
+    // Fill indices: [5]
+    expect(canvasPointer.previewMode.value).toBe('overlay')
+    expect(canvasPointer.previewPixels.value).toEqual(new Uint32Array([
+      T, T, T, T,
+      T, h('#0000ffa6'), T, T,
+      T, T, T, T,
+      T, T, T, T,
+    ]))
+    expect(canvasPointer.previewNoopMask.value).toEqual(new Uint8Array([
+      1, 1, 1, 0,
+      1, 0, 1, 0,
+      1, 1, 1, 0,
+      0, 0, 0, 0,
+    ]))
+
+    canvasPointer.onPointerUp(moveEvent)
+
+    // Only fill is committed; transparent stroke is a no-op.
+    expect(historyStore.snapshots).toHaveLength(2)
+    expect(editorStore.document.pixels).toEqual(new Uint32Array([
+      T, T, T, T,
+      T, h('#0000ffff'), T, T,
+      T, T, T, T,
+      T, T, T, T,
+    ]))
+  })
+
   it('does not push history when the committed rectangle would be identical', () => {
     const editorStore = useEditorStore()
     const colorStore = useColorStore()
