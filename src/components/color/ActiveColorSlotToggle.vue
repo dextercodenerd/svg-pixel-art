@@ -10,7 +10,7 @@ import { storeToRefs } from 'pinia'
 import { useColorStore } from '../../stores/color'
 import type { ActiveColorSlot } from '../../types'
 
-const props = defineProps<{
+defineProps<{
   compact?: boolean
 }>()
 

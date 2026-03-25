@@ -17,7 +17,13 @@ import {
   getPixelIndex,
   stampBrushInto,
 } from '../services/pixelOps'
-import { abgrToHex, applyAlphaToAbgr, hexToAbgr, isTransparentAbgr } from '../services/colorUtils'
+import {
+  abgrToHex,
+  compositeSourceOverAbgr,
+  hexToAbgr,
+  isTransparentAbgr,
+  toPreviewAbgr,
+} from '../services/colorUtils'
 import { useColorStore } from '../stores/color'
 import { useEditorStore } from '../stores/editor'
 import { TRANSPARENT } from '../types'
@@ -44,6 +50,7 @@ interface StrokeSession {
   kind: 'stroke'
   lastPoint: CanvasPoint
   pointerId: number
+  strokeMask: Uint8Array | null
 }
 
 interface LineSession {
@@ -64,6 +71,7 @@ interface RectangleSession {
   hasChanges: boolean
   kind: 'rectangle'
   pointerId: number
+  showNoopFillPreview: boolean
   startPoint: CanvasPoint
   strokeColor: number
   strokeIndices: number[]
@@ -111,6 +119,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
   const pointerPosition = ref<{ x: number; y: number } | null>(null)
   const hoverPointerType = ref<string | null>(null)
   const previewPixels = ref<Uint32Array | null>(null)
+  const previewNoopMask = ref<Uint8Array | null>(null)
   const previewMode = ref<PreviewMode>('overlay')
 
   let activeSession: ActiveSession | null = null
@@ -125,7 +134,38 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
 
   function clearPreviewState() {
     previewPixels.value = null
+    previewNoopMask.value = null
     previewMode.value = 'overlay'
+  }
+
+  function createNoopMask(length: number, indices: number[]): Uint8Array | null {
+    if (indices.length === 0) {
+      return null
+    }
+
+    const mask = new Uint8Array(length)
+    for (const index of indices) {
+      mask[index] = 1
+    }
+    return mask
+  }
+
+  function mergeNoopMasks(
+    length: number,
+    first: number[],
+    second: number[],
+    includeSecond: boolean,
+  ): Uint8Array | null {
+    const mask = createNoopMask(length, first)
+    if (!includeSecond || second.length === 0) {
+      return mask
+    }
+
+    const nextMask = mask ?? new Uint8Array(length)
+    for (const index of second) {
+      nextMask[index] = 1
+    }
+    return nextMask
   }
 
   function getRelativePointerPosition(clientX: number, clientY: number) {
@@ -228,6 +268,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     from: CanvasPoint,
     to: CanvasPoint,
     color: number,
+    strokeMask: Uint8Array | null,
   ): boolean {
     let changed = false
 
@@ -241,6 +282,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
           point.row,
           brushSize.value,
           color,
+          strokeMask,
         ) || changed
     }
 
@@ -260,7 +302,10 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     let hasChanges = false
 
     for (const index of lineIndices) {
-      if (session.basePixels[index] !== session.color) {
+      if (
+        session.basePixels[index] !==
+        compositeSourceOverAbgr(session.basePixels[index]!, session.color)
+      ) {
         hasChanges = true
         break
       }
@@ -268,10 +313,12 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
 
     session.lineIndices = lineIndices
     session.hasChanges = hasChanges
+    previewNoopMask.value =
+      session.color === 0 ? createNoopMask(session.basePixels.length, lineIndices) : null
     previewPixels.value = createPixelMask(
       session.basePixels.length,
       lineIndices,
-      applyAlphaToAbgr(session.color, 0.65),
+      toPreviewAbgr(session.color),
     )
     previewMode.value = 'overlay'
   }
@@ -285,7 +332,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       session.currentPoint.col,
       session.currentPoint.row,
       rectangleStrokeWidth.value,
-      session.fillColor !== 0,
+      session.fillColor !== 0 || session.showNoopFillPreview,
     )
 
     const normalizedStroke = session.strokeColor
@@ -293,7 +340,10 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     let hasChanges = false
 
     for (const index of stroke) {
-      if (session.basePixels[index] !== normalizedStroke) {
+      if (
+        session.basePixels[index] !==
+        compositeSourceOverAbgr(session.basePixels[index]!, normalizedStroke)
+      ) {
         hasChanges = true
         break
       }
@@ -301,7 +351,10 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
 
     if (!hasChanges && normalizedFill !== 0) {
       for (const index of fill) {
-        if (session.basePixels[index] !== normalizedFill) {
+        if (
+          session.basePixels[index] !==
+          compositeSourceOverAbgr(session.basePixels[index]!, normalizedFill)
+        ) {
           hasChanges = true
           break
         }
@@ -313,8 +366,8 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     session.hasChanges = hasChanges
 
     const preview = new Uint32Array(session.basePixels.length)
-    const strokePreviewColor = applyAlphaToAbgr(session.strokeColor, 0.65)
-    const fillPreviewColor = session.fillColor === 0 ? 0 : applyAlphaToAbgr(session.fillColor, 0.65)
+    const strokePreviewColor = toPreviewAbgr(session.strokeColor)
+    const fillPreviewColor = toPreviewAbgr(session.fillColor)
 
     if (fillPreviewColor !== 0) {
       for (const index of fill) {
@@ -326,6 +379,12 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       preview[index] = strokePreviewColor
     }
 
+    previewNoopMask.value = mergeNoopMasks(
+      session.basePixels.length,
+      session.strokeColor === 0 ? stroke : [],
+      fill,
+      session.showNoopFillPreview,
+    )
     previewPixels.value = preview
     previewMode.value = 'overlay'
   }
@@ -359,14 +418,14 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
 
     if (activeSession.kind === 'line' && activeSession.hasChanges) {
       const nextPixels = new Uint32Array(activeSession.basePixels)
-      applyColorAtIndices(nextPixels, activeSession.lineIndices, activeSession.color)
+      applyColorAtIndices(nextPixels, activeSession.lineIndices, activeSession.color, true)
       editorStore.setPixels(nextPixels)
     } else if (activeSession.kind === 'rectangle' && activeSession.hasChanges) {
       const nextPixels = new Uint32Array(activeSession.basePixels)
       if (activeSession.fillColor !== 0) {
-        applyColorAtIndices(nextPixels, activeSession.fillIndices, activeSession.fillColor)
+        applyColorAtIndices(nextPixels, activeSession.fillIndices, activeSession.fillColor, true)
       }
-      applyColorAtIndices(nextPixels, activeSession.strokeIndices, activeSession.strokeColor)
+      applyColorAtIndices(nextPixels, activeSession.strokeIndices, activeSession.strokeColor, true)
       editorStore.setPixels(nextPixels)
     } else if (activeSession.kind === 'stroke' && activeSession.hasChanges) {
       editorStore.setPixels(activeSession.draftPixels)
@@ -475,6 +534,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
         hasChanges: false,
         kind: 'rectangle',
         pointerId: event.pointerId,
+        showNoopFillPreview: rectangleFillSlot.value !== 'transparent' && fillColor === 0,
         startPoint: point,
         strokeColor,
         strokeIndices: [],
@@ -490,7 +550,9 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
 
     const strokeColor = getStrokeColor(event.pointerType, event.button, tool)
     const draftPixels = new Uint32Array(document.value.pixels)
-    const hasChanges = applyStrokeSegment(draftPixels, point, point, strokeColor)
+    const strokeMask =
+      tool === 'eraser' ? null : new Uint8Array(document.value.width * document.value.height)
+    const hasChanges = applyStrokeSegment(draftPixels, point, point, strokeColor, strokeMask)
 
     activeSession = {
       color: strokeColor,
@@ -499,7 +561,9 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       kind: 'stroke',
       lastPoint: point,
       pointerId: event.pointerId,
+      strokeMask,
     }
+    previewNoopMask.value = strokeColor === 0 ? strokeMask : null
     previewPixels.value = draftPixels
     previewMode.value = 'replace'
     capturePointer(event)
@@ -524,6 +588,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
           activeSession.lastPoint,
           point,
           activeSession.color,
+          activeSession.strokeMask,
         ) || activeSession.hasChanges
       activeSession.lastPoint = point
       // draftPixels is mutated in-place, so re-assigning the same reference here does
@@ -533,6 +598,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
       // flushes them together, so the canvas reads the already-mutated draftPixels array
       // when it draws. The line tool avoids this entirely by producing a fresh array in
       // renderLinePreview() on each move.
+      previewNoopMask.value = activeSession.color === 0 ? activeSession.strokeMask : null
       previewPixels.value = activeSession.draftPixels
       previewMode.value = 'replace'
       event.preventDefault()
@@ -611,6 +677,7 @@ export function useCanvasPointer(options: UseCanvasPointerOptions) {
     pointerInsideDocument,
     pointerPosition,
     previewMode,
+    previewNoopMask,
     previewPixels,
     updateHoverState,
   }

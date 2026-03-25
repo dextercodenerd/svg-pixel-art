@@ -11,7 +11,7 @@ import { computed } from 'vue'
 import ColorPicker from './ColorPicker.vue'
 import { useColorStore } from '../../stores/color'
 
-const props = defineProps<{
+defineProps<{
   compact?: boolean
 }>()
 

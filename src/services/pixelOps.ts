@@ -5,6 +5,7 @@
  * This source code is licensed under the GNU Affero General Public License v3.0
  * found in the LICENSE file in the root directory of this source tree.
  */
+import { compositeSourceOverAbgr } from './colorUtils'
 import type { BrushSize } from '../types'
 
 export interface PixelPoint {
@@ -33,6 +34,7 @@ export function stampBrushInto(
   row: number,
   brushSize: BrushSize,
   color: number,
+  strokeMask?: Uint8Array | null,
 ): boolean {
   const origin = getBrushOrigin(col, row, brushSize)
   const startCol = Math.max(0, origin.col)
@@ -45,18 +47,36 @@ export function stampBrushInto(
   for (let currentRow = startRow; currentRow < endRow; currentRow += 1) {
     for (let currentCol = startCol; currentCol < endCol; currentCol += 1) {
       const index = getPixelIndex(width, currentCol, currentRow)
-      if (pixels[index] === color) {
-        continue
-      }
 
-      pixels[index] = color
-      changed = true
+      if (strokeMask != null) {
+        if (strokeMask[index] === 1) {
+          continue
+        }
+        strokeMask[index] = 1
+        const composited = compositeSourceOverAbgr(pixels[index], color)
+        if (pixels[index] === composited) {
+          continue
+        }
+        pixels[index] = composited
+        changed = true
+      } else {
+        if (pixels[index] === color) {
+          continue
+        }
+        pixels[index] = color
+        changed = true
+      }
     }
   }
 
   return changed
 }
 
+/**
+ * Returns a copy of `pixels` with a single brush stamp applied at (col, row).
+ * Always uses direct overwrite -- does NOT composite semi-transparent colors.
+ * Use `stampBrushInto` with a `strokeMask` for compositing behavior.
+ */
 export function brushStamp(
   pixels: Uint32Array,
   width: number,
@@ -152,15 +172,16 @@ export function applyColorAtIndices(
   pixels: Uint32Array,
   indices: number[],
   color: number,
+  composite?: boolean,
 ): boolean {
   let changed = false
 
   for (const index of indices) {
-    if (pixels[index] === color) {
+    const newValue = composite ? compositeSourceOverAbgr(pixels[index]!, color) : color
+    if (pixels[index] === newValue) {
       continue
     }
-
-    pixels[index] = color
+    pixels[index] = newValue
     changed = true
   }
 

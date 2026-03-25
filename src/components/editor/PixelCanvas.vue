@@ -25,11 +25,13 @@ const props = withDefaults(
     document: EditorDocument
     gridVisible: boolean
     previewMode?: 'overlay' | 'replace'
+    previewNoopMask?: Uint8Array | null
     previewPixels?: Uint32Array | null
     zoom: ZoomLevel
   }>(),
   {
     previewMode: 'overlay',
+    previewNoopMask: null,
     previewPixels: null,
   },
 )
@@ -179,6 +181,34 @@ function drawCursor(context: CanvasRenderingContext2D) {
   context.restore()
 }
 
+function drawNoopPreviewMarkers(context: CanvasRenderingContext2D, mask: Uint8Array) {
+  context.save()
+
+  for (let index = 0; index < mask.length; index += 1) {
+    if (mask[index] !== 1) {
+      continue
+    }
+
+    const col = index % props.document.width
+    const row = Math.floor(index / props.document.width)
+    const x = col * renderScale.value
+    const y = row * renderScale.value
+    const size = renderScale.value
+
+    context.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+    context.lineWidth = 1
+    context.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1)
+
+    context.strokeStyle = 'rgba(220, 38, 38, 0.95)'
+    context.beginPath()
+    context.moveTo(x + 1, y + 1)
+    context.lineTo(x + size - 1, y + size - 1)
+    context.stroke()
+  }
+
+  context.restore()
+}
+
 function drawCanvas() {
   const canvas = canvasRef.value
   if (canvas == null) {
@@ -221,6 +251,13 @@ function drawCanvas() {
     drawGrid(context)
   }
 
+  if (
+    props.previewNoopMask != null &&
+    props.previewNoopMask.length === props.document.pixels.length
+  ) {
+    drawNoopPreviewMarkers(context, props.previewNoopMask)
+  }
+
   drawCursor(context)
 }
 
@@ -240,6 +277,7 @@ watch(
       props.document.pixels,
       props.zoom,
       props.gridVisible,
+      props.previewNoopMask,
       props.previewPixels,
       props.previewMode,
       props.cursor,

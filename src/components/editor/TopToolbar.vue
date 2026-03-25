@@ -30,7 +30,7 @@ const { activeTool, gridVisible, zoom } = storeToRefs(editorStore)
 const { canRedo, canUndo } = storeToRefs(useHistoryStore())
 const { resetZoom, zoomIn, zoomOut } = useZoom()
 
-const props = defineProps<{
+defineProps<{
   importError: string | null
   isImporting: boolean
   statusMessage: string | null
@@ -47,7 +47,8 @@ const isMenuOpen = ref(false)
 
 function onMenuAction(action: 'exportJson' | 'exportSvg' | 'import' | 'new') {
   isMenuOpen.value = false
-  ;(emit as (e: typeof action) => void)(action)
+  // Vue's emit overloads don't accept a union type directly; cast to call it generically
+  ;(emit as CallableFunction)(action)
 }
 
 const showBrushSize = computed(() => {

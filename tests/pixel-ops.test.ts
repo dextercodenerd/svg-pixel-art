@@ -14,11 +14,64 @@ import {
   collectStrokeIndices,
   createPixelMask,
   floodFill,
+  stampBrushInto,
 } from '../src/services/pixelOps'
-import { hexToAbgr } from '../src/services/colorUtils'
+import { compositeSourceOverAbgr, hexToAbgr } from '../src/services/colorUtils'
 
 const T = 0 // transparent
 const h = hexToAbgr
+
+describe('stampBrushInto with stroke mask', () => {
+  it('composites src over dst and marks mask, second stamp on same pixel is a no-op', () => {
+    const blue = h('#0000ffff')
+    const red50 = h('#ff000080')
+    const pixels = new Uint32Array([blue, T, T, T])
+    const mask = new Uint8Array(4)
+
+    stampBrushInto(pixels, 4, 1, 0, 0, 1, red50, mask)
+    const composited = compositeSourceOverAbgr(blue, red50)
+    expect(pixels[0]).toBe(composited)
+    expect(mask[0]).toBe(1)
+
+    // second stamp — mask bit is set, pixel must not change
+    const valueAfterFirst = pixels[0]
+    stampBrushInto(pixels, 4, 1, 0, 0, 1, red50, mask)
+    expect(pixels[0]).toBe(valueAfterFirst)
+  })
+
+  it('directly overwrites when mask is null (eraser behavior preserved)', () => {
+    const blue = h('#0000ffff')
+    const red50 = h('#ff000080')
+    const pixels = new Uint32Array([blue, T, T, T])
+
+    stampBrushInto(pixels, 4, 1, 0, 0, 1, red50, null)
+    expect(pixels[0]).toBe(red50)
+  })
+})
+
+describe('applyColorAtIndices with composite flag', () => {
+  it('composites onto existing colors when composite is true', () => {
+    const blue = h('#0000ffff')
+    const red50 = h('#ff000080')
+    const pixels = new Uint32Array([blue, T, blue, T])
+
+    applyColorAtIndices(pixels, [0, 2], red50, true)
+    const expected = compositeSourceOverAbgr(blue, red50)
+    expect(pixels[0]).toBe(expected)
+    expect(pixels[2]).toBe(expected)
+    expect(pixels[1]).toBe(T)
+  })
+
+  it('directly overwrites when composite is false (default behavior)', () => {
+    const blue = h('#0000ffff')
+    const red = h('#ff0000ff')
+    const pixels = new Uint32Array([blue, T, blue, T])
+
+    applyColorAtIndices(pixels, [0, 2], red)
+    expect(pixels[0]).toBe(red)
+    expect(pixels[2]).toBe(red)
+  })
+})
 
 describe('brushStamp', () => {
   it('centers odd brush sizes around the target pixel', () => {

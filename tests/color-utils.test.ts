@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   abgrToHex,
+  compositeSourceOverAbgr,
   formatHex,
   hexToAbgr,
   hexToAlpha,
@@ -17,6 +18,7 @@ import {
   normalizeHexInput,
   parseHex,
   rgbToHsv,
+  toPreviewAbgr,
 } from '../src/services/colorUtils'
 
 describe('parseHex', () => {
@@ -141,6 +143,97 @@ describe('abgrToHex', () => {
     for (const hex of colors) {
       expect(abgrToHex(hexToAbgr(hex))).toBe(hex)
     }
+  })
+})
+
+describe('compositeSourceOverAbgr', () => {
+  const h = hexToAbgr
+
+  it('returns src unchanged when src is fully opaque', () => {
+    const src = h('#ff0000ff')
+    const dst = h('#0000ffff')
+    expect(compositeSourceOverAbgr(dst, src)).toBe(src)
+  })
+
+  it('returns dst unchanged when src is fully transparent', () => {
+    const dst = h('#0000ffff')
+    expect(compositeSourceOverAbgr(dst, 0)).toBe(dst)
+  })
+
+  it('returns src unchanged when dst is fully transparent', () => {
+    const src = h('#ff000080')
+    expect(compositeSourceOverAbgr(0, src)).toBe(src)
+  })
+
+  it('canonicalizes hidden RGB bytes in transparent fast paths', () => {
+    expect(compositeSourceOverAbgr(0x00ffffff, 0)).toBe(0)
+    expect(compositeSourceOverAbgr(0, 0x00ffffff)).toBe(0)
+    expect(compositeSourceOverAbgr(0x00ffffff, 0x00abcdef)).toBe(0)
+  })
+
+  it('composites 50% red over opaque blue to the expected blended value', () => {
+    // src = #ff000080 → srcR=255, srcG=0, srcB=0, srcA=128
+    // dst = #0000ffff → dstR=0, dstG=0, dstB=255, dstA=255
+    // outA=255, outR=128, outG=0, outB=127
+    // ABGR = 0xff7f0080
+    const src = h('#ff000080')
+    const dst = h('#0000ffff')
+    expect(compositeSourceOverAbgr(dst, src)).toBe(0xff7f0080 >>> 0)
+  })
+
+  it('compositing 50% red over 50% blue produces alpha greater than either input', () => {
+    const src = h('#ff000080')
+    const dst = h('#0000ff80')
+    const result = compositeSourceOverAbgr(dst, src)
+    const outA = (result >>> 24) & 0xff
+    expect(outA).toBeGreaterThan(128)
+    expect(result).toBe(0xc05500aa >>> 0)
+  })
+
+  it('is asymmetric: composite(A, B) !== composite(B, A)', () => {
+    const a = h('#ff000080')
+    const b = h('#0000ff80')
+    expect(compositeSourceOverAbgr(b, a)).not.toBe(compositeSourceOverAbgr(a, b))
+  })
+
+  it('handles near-edge alpha=1 without clamping errors', () => {
+    const src = ((1 << 24) | (255)) >>> 0  // near-transparent red
+    const dst = h('#0000ffff')
+    const result = compositeSourceOverAbgr(dst, src)
+    expect(result).toBeGreaterThan(0)
+  })
+
+  it('handles near-edge alpha=254 without clamping errors', () => {
+    const src = ((254 << 24) | (255)) >>> 0  // near-opaque red
+    const dst = h('#0000ffff')
+    const result = compositeSourceOverAbgr(dst, src)
+    const outA = (result >>> 24) & 0xff
+    expect(outA).toBe(255)
+  })
+
+  it('matches the expected integer result for translucent source over translucent destination', () => {
+    const src = 0x21fe89e6 >>> 0
+    const dst = 0x04d72c6b >>> 0
+
+    expect(compositeSourceOverAbgr(dst, src)).toBe(0x24fa80da >>> 0)
+  })
+})
+
+describe('toPreviewAbgr', () => {
+  it('returns transparent for fully transparent colors', () => {
+    expect(toPreviewAbgr(0)).toBe(0)
+  })
+
+  it('scales opaque colors down to the preview opacity', () => {
+    expect(toPreviewAbgr(hexToAbgr('#ff0000ff'))).toBe(hexToAbgr('#ff0000a6'))
+  })
+
+  it('scales semi-transparent colors using their source alpha', () => {
+    expect(toPreviewAbgr(hexToAbgr('#ff000080'))).toBe(hexToAbgr('#ff000053'))
+  })
+
+  it('keeps very low-alpha colors visible via the minimum preview alpha', () => {
+    expect(toPreviewAbgr(hexToAbgr('#ff000008'))).toBe(hexToAbgr('#ff000048'))
   })
 })
 

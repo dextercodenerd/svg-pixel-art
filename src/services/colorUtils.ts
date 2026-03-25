@@ -237,6 +237,68 @@ export function applyAlphaToHex(hex: string, alpha: number): string {
   }
 }
 
+const PREVIEW_ALPHA_FACTOR = 0.65
+const PREVIEW_MIN_ALPHA = 72
+
+/**
+ * Convert a source color into a preview overlay color.
+ * Preserves RGB, scales the source alpha, and keeps a minimum visible opacity.
+ */
+export function toPreviewAbgr(value: number): number {
+  const sourceAlpha = (value >>> 24) & 0xff
+  if (sourceAlpha === 0) {
+    return 0
+  }
+
+  const previewAlpha = Math.max(PREVIEW_MIN_ALPHA, Math.round(sourceAlpha * PREVIEW_ALPHA_FACTOR))
+  return ((value & 0x00ffffff) | (previewAlpha << 24)) >>> 0
+}
+
+/**
+ * Porter-Duff "source over" compositing in integer ABGR arithmetic.
+ * Draws src on top of dst and returns the blended ABGR uint32.
+ */
+export function compositeSourceOverAbgr(dst: number, src: number): number {
+  const srcA = (src >>> 24) & 0xff
+  const normalizedSrc = srcA === 0 ? 0 : src
+  if (srcA === 255) {
+    return normalizedSrc
+  }
+  if (srcA === 0) {
+    return ((dst >>> 24) & 0xff) === 0 ? 0 : dst
+  }
+
+  const dstA = (dst >>> 24) & 0xff
+  if (dstA === 0) {
+    return normalizedSrc
+  }
+
+  const srcR = src & 0xff
+  const srcG = (src >>> 8) & 0xff
+  const srcB = (src >>> 16) & 0xff
+  const dstR = dst & 0xff
+  const dstG = (dst >>> 8) & 0xff
+  const dstB = (dst >>> 16) & 0xff
+
+  const invSrcA = 255 - srcA
+  // outAlphaNumerator = outA * 255 (unnormalized). Keeping it in this form lets us
+  // use it directly as the denominator in channel compositing, avoiding a second
+  // division pass. Dividing by 255 gives the final outA byte.
+  const outAlphaNumerator = srcA * 255 + dstA * invSrcA
+  const outA = ((outAlphaNumerator + 127) / 255) | 0
+
+  const compositeChannel = (srcChannel: number, dstChannel: number) =>
+    ((srcChannel * srcA * 255 + dstChannel * dstA * invSrcA + (outAlphaNumerator >> 1)) /
+      outAlphaNumerator) |
+    0
+
+  const outR = compositeChannel(srcR, dstR)
+  const outG = compositeChannel(srcG, dstG)
+  const outB = compositeChannel(srcB, dstB)
+
+  return ((outA << 24) | (outB << 16) | (outG << 8) | outR) >>> 0
+}
+
 /** Replace the alpha byte of an ABGR uint32 with the given opacity (0–1). */
 export function applyAlphaToAbgr(value: number, alpha: number): number {
   const a = clampByte(Math.round(alpha * 255))

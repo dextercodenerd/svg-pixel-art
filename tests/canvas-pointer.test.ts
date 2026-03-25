@@ -13,7 +13,7 @@ import { useColorStore } from '../src/stores/color'
 import { useEditorStore } from '../src/stores/editor'
 import { useHistoryStore } from '../src/stores/history'
 import { BASE_PIXEL_SIZE, TRANSPARENT_U32, createEditorDocument } from '../src/types'
-import { hexToAbgr } from '../src/services/colorUtils'
+import { compositeSourceOverAbgr, hexToAbgr } from '../src/services/colorUtils'
 
 const T = TRANSPARENT_U32
 const h = hexToAbgr
@@ -113,6 +113,7 @@ describe('useCanvasPointer line preview', () => {
     expect(historyStore.snapshots).toHaveLength(1)
     expect(editorStore.document.pixels[0]).toBe(T)
     expect(canvasPointer.previewMode.value).toBe('overlay')
+    expect(canvasPointer.previewNoopMask.value).toBeNull()
     expect(canvasPointer.previewPixels.value).toEqual(new Uint32Array([
       h('#ff0000a6'), T, T, T,
       T, h('#ff0000a6'), T, T,
@@ -130,6 +131,159 @@ describe('useCanvasPointer line preview', () => {
       T, T, h('#ff0000ff'), T,
       T, T, T, h('#00ff00ff'),
     ]))
+  })
+
+  it('scales preview alpha from the source alpha instead of using a fixed overlay opacity', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+
+    editorStore.loadDocument(createEditorDocument({ width: 4, height: 4 }))
+    editorStore.setTool('line')
+    colorStore.setFg('#ff000080')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const startEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 8,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const moveEvent = {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+      currentTarget: canvasTarget,
+      pointerId: 8,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(startEvent)
+    canvasPointer.onPointerMove(moveEvent)
+
+    expect(canvasPointer.previewPixels.value).toEqual(new Uint32Array([
+      h('#ff000053'), T, T, T,
+      T, h('#ff000053'), T, T,
+      T, T, h('#ff000053'), T,
+      T, T, T, T,
+    ]))
+  })
+
+  it('commits composited pixel values when drawing with a semi-transparent line over existing pixels', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+    const blue = h('#0000ffff')
+    const document = createEditorDocument({ width: 4, height: 4 })
+    document.pixels[0] = blue
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('line')
+    colorStore.setFg('#ff000080')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    // Draw a single-point line at (0,0) which contains the blue pixel
+    const downEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 30,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const upEvent = { ...downEvent } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(downEvent)
+    canvasPointer.onPointerUp(upEvent)
+
+    expect(historyStore.snapshots).toHaveLength(2)
+    const expected = compositeSourceOverAbgr(blue, h('#ff000080'))
+    expect(editorStore.document.pixels[0]).toBe(expected)
+  })
+
+  it('shows no-op markers for fully transparent line colors and does not commit changes', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+    const document = createEditorDocument({ width: 4, height: 4 })
+    document.pixels[5] = h('#112233ff')
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('line')
+    colorStore.setFg('#ff000000')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const startEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 9,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const moveEvent = {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+      currentTarget: canvasTarget,
+      pointerId: 9,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(startEvent)
+    canvasPointer.onPointerMove(moveEvent)
+
+    expect(canvasPointer.previewPixels.value).toEqual(new Uint32Array(16))
+    expect(canvasPointer.previewNoopMask.value).toEqual(new Uint8Array([
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      0, 0, 0, 0,
+    ]))
+
+    canvasPointer.onPointerUp(moveEvent)
+
+    expect(historyStore.snapshots).toHaveLength(1)
+    expect(editorStore.document.pixels).toEqual(document.pixels)
   })
 })
 
@@ -343,6 +497,66 @@ describe('useCanvasPointer rectangle preview', () => {
     expect(canvasPointer.previewPixels.value).toBe(initialPreview)
   })
 
+  it('commits composited pixel values when drawing with a semi-transparent rectangle stroke over existing pixels', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+    const blue = h('#0000ffff')
+
+    // Fill all pixels with blue so we can verify compositing on every stroke pixel
+    const document = createEditorDocument({ width: 4, height: 4 })
+    document.pixels.fill(blue)
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('rectangle')
+    editorStore.setRectangleStrokeSlot('fg')
+    editorStore.setRectangleStrokeWidth(1)
+    editorStore.setRectangleFillSlot('transparent')
+    colorStore.setFg('#ff000080')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const startEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 31,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const moveEvent = {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+      currentTarget: canvasTarget,
+      pointerId: 31,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(startEvent)
+    canvasPointer.onPointerMove(moveEvent)
+    canvasPointer.onPointerUp(moveEvent)
+
+    expect(historyStore.snapshots).toHaveLength(2)
+    const expected = compositeSourceOverAbgr(blue, h('#ff000080'))
+    // Stroke pixel at (0,0) should be composited, not overwritten
+    expect(editorStore.document.pixels[0]).toBe(expected)
+    // Non-stroke interior pixel should be untouched (transparent fill)
+    expect(editorStore.document.pixels[5]).toBe(blue)
+  })
+
   it('does not push history when the committed rectangle would be identical', () => {
     const editorStore = useEditorStore()
     const colorStore = useColorStore()
@@ -412,6 +626,208 @@ describe('useCanvasPointer rectangle preview', () => {
 
     expect(historyStore.snapshots).toHaveLength(1)
     expect(editorStore.document.pixels).toEqual(document.pixels)
+  })
+})
+
+describe('useCanvasPointer pencil compositing', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('composites a semi-transparent stroke over an existing pixel instead of overwriting', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const document = createEditorDocument({ width: 4, height: 4 })
+    const blue = h('#0000ffff')
+    document.pixels[0] = blue
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('pencil')
+    colorStore.setFg('#ff000080')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const downEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 20,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const upEvent = { ...downEvent } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(downEvent)
+    canvasPointer.onPointerUp(upEvent)
+
+    // result must be blended, not the raw semi-transparent red
+    const result = editorStore.document.pixels[0]
+    expect(result).not.toBe(h('#ff000080'))
+    expect(result).not.toBe(blue)
+    // alpha should be 255 (opaque result from opaque dst + semi-transparent src)
+    expect((result! >>> 24) & 0xff).toBe(255)
+  })
+
+  it('does not progressively darken a pixel revisited in the same stroke', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const document = createEditorDocument({ width: 4, height: 4 })
+    const blue = h('#0000ffff')
+    document.pixels[0] = blue
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('pencil')
+    colorStore.setFg('#ff000080')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const downEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 21,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    // move away then back to the same pixel
+    const moveAwayEvent = {
+      button: 0,
+      clientX: 12,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 21,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const moveBackEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 21,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const upEvent = { ...moveBackEvent } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(downEvent)
+    canvasPointer.onPointerMove(moveAwayEvent)
+    canvasPointer.onPointerMove(moveBackEvent)
+    canvasPointer.onPointerUp(upEvent)
+
+    // value must be the same as a single composite, not darker from double compositing
+    const expected = compositeSourceOverAbgr(blue, h('#ff000080'))
+    expect(editorStore.document.pixels[0]).toBe(expected)
+  })
+
+  it('shows no-op markers for fully transparent pencil strokes and keeps the document unchanged', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+    const document = createEditorDocument({ width: 4, height: 4 })
+    document.pixels[0] = h('#112233ff')
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('pencil')
+    colorStore.setFg('#ff000000')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const downEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 23,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const upEvent = { ...downEvent } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(downEvent)
+
+    expect(canvasPointer.previewMode.value).toBe('replace')
+    expect(canvasPointer.previewNoopMask.value).toEqual(new Uint8Array([
+      1, 0, 0, 0,
+      0, 0, 0, 0,
+      0, 0, 0, 0,
+      0, 0, 0, 0,
+    ]))
+    expect(canvasPointer.previewPixels.value).toEqual(document.pixels)
+
+    canvasPointer.onPointerUp(upEvent)
+
+    expect(historyStore.snapshots).toHaveLength(1)
+    expect(editorStore.document.pixels).toEqual(document.pixels)
+  })
+
+  it('eraser sets pixels to transparent regardless of what was underneath', () => {
+    const editorStore = useEditorStore()
+    const document = createEditorDocument({ width: 4, height: 4 })
+    document.pixels[0] = h('#ff0000ff')
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('eraser')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const downEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 22,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const upEvent = { ...downEvent } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(downEvent)
+    canvasPointer.onPointerUp(upEvent)
+
+    expect(editorStore.document.pixels[0]).toBe(T)
   })
 })
 
