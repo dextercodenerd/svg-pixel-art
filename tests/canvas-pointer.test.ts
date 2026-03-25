@@ -183,6 +183,50 @@ describe('useCanvasPointer line preview', () => {
     ]))
   })
 
+  it('commits composited pixel values when drawing with a semi-transparent line over existing pixels', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+    const blue = h('#0000ffff')
+    const document = createEditorDocument({ width: 4, height: 4 })
+    document.pixels[0] = blue
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('line')
+    colorStore.setFg('#ff000080')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    // Draw a single-point line at (0,0) which contains the blue pixel
+    const downEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 30,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const upEvent = { ...downEvent } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(downEvent)
+    canvasPointer.onPointerUp(upEvent)
+
+    expect(historyStore.snapshots).toHaveLength(2)
+    const expected = compositeSourceOverAbgr(blue, h('#ff000080'))
+    expect(editorStore.document.pixels[0]).toBe(expected)
+  })
+
   it('shows no-op markers for fully transparent line colors and does not commit changes', () => {
     const editorStore = useEditorStore()
     const colorStore = useColorStore()
@@ -451,6 +495,66 @@ describe('useCanvasPointer rectangle preview', () => {
     canvasPointer.onPointerMove(moveEventSameCell)
 
     expect(canvasPointer.previewPixels.value).toBe(initialPreview)
+  })
+
+  it('commits composited pixel values when drawing with a semi-transparent rectangle stroke over existing pixels', () => {
+    const editorStore = useEditorStore()
+    const colorStore = useColorStore()
+    const historyStore = useHistoryStore()
+    const blue = h('#0000ffff')
+
+    // Fill all pixels with blue so we can verify compositing on every stroke pixel
+    const document = createEditorDocument({ width: 4, height: 4 })
+    document.pixels.fill(blue)
+
+    editorStore.loadDocument(document)
+    editorStore.setTool('rectangle')
+    editorStore.setRectangleStrokeSlot('fg')
+    editorStore.setRectangleStrokeWidth(1)
+    editorStore.setRectangleFillSlot('transparent')
+    colorStore.setFg('#ff000080')
+
+    const viewportRef = ref<HTMLElement | null>(new FakeElement() as unknown as HTMLElement)
+    const canvasTarget = new FakeElement() as unknown as Element
+    const canvasPointer = useCanvasPointer({
+      displayPan: ref({ x: 0, y: 0 }),
+      displayScale: ref(1),
+      isPanning: ref(false),
+      isTouchGestureActive: ref(false),
+      renderScale: ref(BASE_PIXEL_SIZE),
+      spacePressed: ref(false),
+      viewportRef,
+    })
+
+    const startEvent = {
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+      currentTarget: canvasTarget,
+      pointerId: 31,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+    const moveEvent = {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+      currentTarget: canvasTarget,
+      pointerId: 31,
+      pointerType: 'mouse',
+      preventDefault() {},
+    } as unknown as PointerEvent
+
+    canvasPointer.onPointerDown(startEvent)
+    canvasPointer.onPointerMove(moveEvent)
+    canvasPointer.onPointerUp(moveEvent)
+
+    expect(historyStore.snapshots).toHaveLength(2)
+    const expected = compositeSourceOverAbgr(blue, h('#ff000080'))
+    // Stroke pixel at (0,0) should be composited, not overwritten
+    expect(editorStore.document.pixels[0]).toBe(expected)
+    // Non-stroke interior pixel should be untouched (transparent fill)
+    expect(editorStore.document.pixels[5]).toBe(blue)
   })
 
   it('does not push history when the committed rectangle would be identical', () => {

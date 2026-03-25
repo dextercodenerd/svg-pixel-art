@@ -53,7 +53,7 @@ export function stampBrushInto(
           continue
         }
         strokeMask[index] = 1
-        const composited = compositeSourceOverAbgr(pixels[index]!, color)
+        const composited = compositeSourceOverAbgr(pixels[index], color)
         if (pixels[index] === composited) {
           continue
         }
@@ -72,6 +72,11 @@ export function stampBrushInto(
   return changed
 }
 
+/**
+ * Returns a copy of `pixels` with a single brush stamp applied at (col, row).
+ * Always uses direct overwrite -- does NOT composite semi-transparent colors.
+ * Use `stampBrushInto` with a `strokeMask` for compositing behavior.
+ */
 export function brushStamp(
   pixels: Uint32Array,
   width: number,

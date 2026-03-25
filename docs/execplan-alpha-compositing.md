@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: IMPLEMENTED (pending manual browser verification — Stage I)
+Status: COMPLETE
 
 ## Purpose / big picture
 
@@ -74,13 +74,42 @@ Selecting a fully transparent paint color (alpha `00`) is an intentional no-op f
   Rationale: Deletion stays the responsibility of the eraser tool. Paint tools with alpha `00` should preview as "nothing will be drawn" instead of silently behaving like erase.
   Date/Author: 2026-03-25.
 
+- Decision: Flood fill with a semi-transparent fill color replaces pixels with the raw semi-transparent value (no compositing).
+  Rationale: Consistent with the existing "fill replaces, does not composite" decision. The result is a pixel with alpha < 255, which is valid pixel-art behavior. Users wanting a blended color can use eyedropper to pick the composited result first.
+  Date/Author: 2026-03-25.
+
 - Decision: Remove the opaque-color regression risk from this ExecPlan.
   Rationale: The current implementation and tests already prove that fully opaque source colors replace the destination as intended, so this is no longer an active project risk.
   Date/Author: 2026-03-25.
 
 ## Outcomes & retrospective
 
-(to be filled after completion)
+Implementation followed the plan faithfully. All 9 stages completed without hitting any tolerance triggers. 181 tests pass (up from 179 after postmortem additions).
+
+### Postmortem findings and follow-up changes (2026-03-25)
+
+A structured postmortem review surfaced the following issues, all resolved:
+
+**Code fixes applied:**
+
+- `pixelOps.ts` (`stampBrushInto`): Removed an unnecessary `!` non-null assertion on the `pixels[index]` read inside the mask branch (line 56). The assertion was inconsistent with surrounding accesses on lines 57 and 63 and unnecessary for `Uint32Array` indexing.
+- `colorUtils.ts` (`compositeSourceOverAbgr`): Added a comment explaining the `outAlphaNumerator` derivation — `outA * 255` kept unnormalized so it can serve directly as the denominator in channel compositing, avoiding a second division pass.
+- `pixelOps.ts` (`brushStamp`): Added JSDoc noting that `brushStamp` always uses direct overwrite and does not composite semi-transparent colors. Callers needing compositing should use `stampBrushInto` with a `strokeMask`.
+
+**Tests added:**
+
+- `canvas-pointer.test.ts`: Added two integration tests that were missing from the original plan:
+  - Line tool with `#ff000080` over an existing blue pixel: verifies the exact composited value at commit (not the raw source color and not overwrite).
+  - Rectangle tool with `#ff000080` stroke over a canvas of blue pixels: verifies composited commit and that interior (non-stroke) pixels are untouched.
+
+**Spec clarification added to Decision Log:**
+
+- Flood fill with a semi-transparent fill color replaces pixels with the raw semi-transparent value (no compositing). This is consistent with "replace" semantics but was previously undocumented.
+
+**Known limitation documented but not changed:**
+
+- `brushStamp` (public export) always overwrites, never composites. This is correct for its current use (single-stamp on a fresh copy), but callers should be aware. Documented via JSDoc.
+- Preview fidelity vs. commit fidelity: the line/rectangle preview uses `toPreviewAbgr` (scaled opacity floor), which will look visually different from the committed result for high-alpha semi-transparent colors. This is an intentional UX trade-off — the preview communicates "something will be drawn here" rather than simulating exact compositing.
 
 ## Context and orientation
 

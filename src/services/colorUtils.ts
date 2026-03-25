@@ -281,6 +281,9 @@ export function compositeSourceOverAbgr(dst: number, src: number): number {
   const dstB = (dst >>> 16) & 0xff
 
   const invSrcA = 255 - srcA
+  // outAlphaNumerator = outA * 255 (unnormalized). Keeping it in this form lets us
+  // use it directly as the denominator in channel compositing, avoiding a second
+  // division pass. Dividing by 255 gives the final outA byte.
   const outAlphaNumerator = srcA * 255 + dstA * invSrcA
   const outA = ((outAlphaNumerator + 127) / 255) | 0
 
