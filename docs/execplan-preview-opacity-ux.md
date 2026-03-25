@@ -40,7 +40,8 @@ without being mistaken for an erase preview.
   `src/composables/useCanvasPointer.ts`, `src/components/editor/PixelCanvas.vue`,
   and related tests/docs, stop and escalate.
 - Interface: if `PixelCanvas` needs more than one additional preview prop
-  beyond the current mask/pixels inputs, stop and escalate.
+  beyond the current `previewPixels`, `previewNoopMask`, and `previewMode`
+  inputs, stop and escalate.
 - Performance: if the preview change requires more than one full-canvas extra
   draw pass, stop and escalate.
 - Validation: if the right preview balance cannot be agreed from code/tests
@@ -71,16 +72,34 @@ without being mistaken for an erase preview.
 
 - [ ] Stage A: Document the current preview behavior and choose the specific
       visual rules to tune.
-- [ ] Stage B: Add or update unit tests for preview alpha mapping.
+- [ ] Stage B: Tighten automated coverage for the preview contract before
+      changing runtime behavior.
 - [ ] Stage C: Adjust preview alpha mapping and/or marker styling.
 - [ ] Stage D: Add or update integration tests for no-op preview behavior.
-- [ ] Stage E: Run validation (`yarn test`, `yarn build`, `yarn format:check`,
-      and `yarn lint` if the repo is lint-clean or as a known baseline check).
+- [ ] Stage E: Run validation (`yarn test`, `yarn build`, `yarn format`,
+      `yarn format:check`, and `yarn lint` if the repo is lint-clean or as a
+      known baseline check).
 - [ ] Stage F: Manually verify preview readability in browser.
 
 ## Surprises & Discoveries
 
-- None yet.
+- `src/services/colorUtils.ts` already centralizes preview opacity via
+  `toPreviewAbgr(value)`, with `PREVIEW_ALPHA_FACTOR = 0.65` and
+  `PREVIEW_MIN_ALPHA = 72`.
+- Preview rendering already splits into two modes:
+  `overlay` for line/rectangle previews and `replace` for live pencil/eraser
+  draft previews. Any UX tuning has to preserve that distinction unless the
+  plan is explicitly revised.
+- Existing automated coverage already locks in the current helper mapping for
+  opaque, 50% alpha, low-alpha, and transparent colors, plus transparent line
+  and transparent pencil no-op previews. The main missing scenario is a
+  rectangle whose stroke color resolves to alpha `00` while the fill remains
+  drawable.
+- Rectangle fill has two different "nothing" states that should not be
+  conflated:
+  the dedicated `'transparent'` fill slot means "do not render a fill at all",
+  while selecting FG/BG with alpha `00` means "show a fill no-op marker because
+  the chosen paint color exists but commits nothing".
 
 ## Decision Log
 
@@ -113,12 +132,27 @@ Existing automated coverage already checks preview helper behavior in
 `tests/color-utils.test.ts` and pointer preview state in
 `tests/canvas-pointer.test.ts`.
 
+As of this draft, the concrete preview behavior is:
+
+- `toPreviewAbgr()` preserves RGB, returns `0` for source alpha `0`, scales
+  opaque colors down to `#...a6`, scales 50% alpha colors to `#...53`, and
+  floors tiny alpha values such as `#...08` to `#...48`.
+- `useCanvasPointer.ts` uses `previewPixels + previewNoopMask` for line and
+  rectangle previews in `overlay` mode.
+- `useCanvasPointer.ts` uses the live draft pixel buffer in `replace` mode for
+  pencil/eraser previews, with `previewNoopMask` layered on top when the paint
+  color is fully transparent.
+- `PixelCanvas.vue` currently draws no-op cells as a white outline plus a red
+  diagonal slash after drawing document pixels, preview pixels, and the grid.
+
 ## Plan of work
 
 ### Stage A: Lock the visual rules
 
 Read the current helper and rendering code, then write down the exact preview
-rules before changing anything:
+rules before changing anything. The implementation notes above are the starting
+point; confirm them against the code before editing any constants or marker
+styles.
 
 1. Non-zero alpha paint colors use the original RGB with a preview alpha that
    is derived from source alpha.
@@ -129,20 +163,43 @@ rules before changing anything:
 4. Rectangle stroke and fill previews must remain understandable when one part
    is drawable and the other is a no-op.
 
+Write down the exact acceptance intent for the tuning pass in this document
+before proceeding:
+
+- which alpha examples will be used as reference points (`ff`, `80`, `08`,
+  `00`),
+- whether the helper constants are changing or the marker styling alone is
+  sufficient,
+- whether grid-on and grid-off readability both matter for the final sign-off.
+
 If these rules cannot be made consistent with the current `PixelCanvas`
 rendering model, stop and escalate.
 
 ### Stage B: Tighten test coverage first
 
-Before changing runtime behavior, add or refine tests in:
+Before changing runtime behavior, keep the existing preview tests green and add
+only the missing coverage needed to describe the target UX contract.
 
-- `tests/color-utils.test.ts` for the preview alpha helper across these cases:
-  opaque color, medium-alpha color, very low-alpha color, fully transparent
-  color.
+Existing tests already cover:
+
+- `tests/color-utils.test.ts`: transparent, opaque, semi-transparent, and
+  low-alpha preview mapping.
+- `tests/canvas-pointer.test.ts`: transparent line no-op preview, transparent
+  pencil no-op preview, and rectangle preview with transparent fill slot plus
+  opaque stroke.
+
+Add or refine tests in:
+
 - `tests/canvas-pointer.test.ts` for mixed preview cases:
-  transparent line, transparent pencil, rectangle with transparent fill and
-  opaque stroke, and rectangle with transparent stroke and opaque fill if the
-  UI allows it.
+  rectangle with transparent stroke and opaque fill. Set this up by assigning
+  one slot (`fg` or `bg`) a fully transparent color such as `#ff000000` for
+  the stroke, and the other slot an opaque fill color. Do not skip this case:
+  the UI allows it because stroke uses FG/BG slots, not a special
+  `'transparent'` stroke mode.
+
+If Stage A decides to change the preview alpha constants, update the existing
+expected helper values instead of adding duplicate tests that encode the same
+mapping twice.
 
 The goal is to encode the intended preview contract before tuning values.
 
@@ -163,6 +220,16 @@ Preferred tuning order:
 3. Only if needed, tune the no-op marker stroke color, stroke width, or draw
    order.
 
+Use the existing numbers as the baseline when comparing browser results:
+
+- current factor: `0.65`
+- current minimum alpha byte: `72` (`0x48`)
+- current opaque preview alpha byte: `166` (`0xa6`)
+
+The desired outcome is not mathematical purity; it is a preview that remains
+obviously visible at low alpha while still reading as tentative rather than
+committed.
+
 Do not change committed pixel math or store semantics.
 
 ### Stage D: Verify mixed tool scenarios
@@ -175,7 +242,9 @@ Focus on:
 - line preview over existing pixels,
 - pencil preview during a live stroke,
 - rectangle stroke-only preview,
-- rectangle mixed fill/stroke preview where one side is a no-op.
+- rectangle mixed fill/stroke preview where one side is a no-op,
+- the distinction between "fill disabled via the `'transparent'` slot" and
+  "fill selected from FG/BG but resolves to alpha `00`".
 
 If the current `previewPixels` plus `previewNoopMask` model cannot express one
 of these clearly, stop and document the gap before adding more state.
@@ -187,6 +256,7 @@ Run from `/Users/martinflorek/Documents/lavaray/svg-pixel-art`:
 ```plaintext
 yarn test
 yarn build
+yarn format
 yarn format:check
 yarn lint
 ```
@@ -199,25 +269,36 @@ lint errors.
 
 Run `yarn dev`, open the app, and verify:
 
-1. Opaque paint colors remain easy to distinguish from already-committed
-   pixels.
-2. Medium-alpha colors remain visible and look preview-like.
-3. Very low-alpha colors are still visible enough to aim with.
-4. Fully transparent pencil preview shows no-op markers and commits nothing.
-5. Fully transparent line preview shows no-op markers and commits nothing.
-6. Rectangle preview remains readable when stroke is drawable and fill is a
-   no-op.
-7. The marker remains legible at zoom levels `1`, `4`, and `16`.
+1. With pencil selected and FG `#ff0000ff`, hover or drag over existing pixels
+   and confirm the preview is visibly lighter than the final committed red.
+2. Repeat with FG `#ff000080` and confirm the preview remains easy to track.
+3. Repeat with FG `#ff000008` and confirm the preview is still visible enough
+   to place accurately.
+4. Repeat with FG `#ff000000` and confirm pencil preview shows no-op markers
+   without changing the document on pointer up.
+5. Repeat the transparent-color check with the line tool and confirm the same
+   no-op behavior.
+6. For rectangles, verify all three distinct cases:
+   stroke opaque + fill slot `'transparent'`,
+   stroke opaque + fill color alpha `00`,
+   stroke color alpha `00` + fill opaque.
+7. Check the marker at zoom levels `1`, `4`, and `16`, with the grid both on
+   and off if marker contrast is sensitive to the grid lines.
+8. If two candidate tunings are close, capture a short comparison note in this
+   document before choosing one.
 
 ## Validation and acceptance
 
 Acceptance means all of the following are true:
 
 - Automated tests covering preview helper behavior and pointer preview state
-  pass.
+  pass, including the mixed rectangle no-op case.
 - The preview remains performant on the maximum canvas size.
 - Manual browser checks confirm that low-alpha and no-op previews are easier to
   read than before.
+- The final implementation still uses the existing preview surface
+  (`previewPixels`, `previewNoopMask`, `previewMode`) and does not alter commit
+  semantics.
 
 ## Idempotence and recovery
 
