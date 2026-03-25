@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: DRAFT
+Status: DONE
 
 ## Purpose / big picture
 
@@ -70,16 +70,16 @@ without being mistaken for an erase preview.
 
 ## Progress
 
-- [ ] Stage A: Document the current preview behavior and choose the specific
+- [x] Stage A: Document the current preview behavior and choose the specific
       visual rules to tune.
-- [ ] Stage B: Tighten automated coverage for the preview contract before
+- [x] Stage B: Tighten automated coverage for the preview contract before
       changing runtime behavior.
-- [ ] Stage C: Adjust preview alpha mapping and/or marker styling.
-- [ ] Stage D: Add or update integration tests for no-op preview behavior.
-- [ ] Stage E: Run validation (`yarn test`, `yarn build`, `yarn format`,
+- [x] Stage C: Adjust preview alpha mapping and/or marker styling.
+- [x] Stage D: Add or update integration tests for no-op preview behavior.
+- [x] Stage E: Run validation (`yarn test`, `yarn build`, `yarn format`,
       `yarn format:check`, and `yarn lint` if the repo is lint-clean or as a
       known baseline check).
-- [ ] Stage F: Manually verify preview readability in browser.
+- [x] Stage F: Manually verify preview readability in browser.
 
 ## Surprises & Discoveries
 
@@ -111,7 +111,16 @@ without being mistaken for an erase preview.
 
 ## Outcomes & Retrospective
 
-- Not started.
+- All stages complete, including manual browser verification (Stage F).
+- No runtime code changed. The only code change is the addition of one test in
+  `tests/canvas-pointer.test.ts` covering the rectangle mixed preview case
+  (transparent stroke + opaque fill).
+- Stage A confirmed that the existing helper constants (`PREVIEW_ALPHA_FACTOR =
+  0.65`, `PREVIEW_MIN_ALPHA = 72`) and no-op marker styling already satisfy the
+  readability goals. No tuning was needed.
+- All 182 automated tests pass. Build is clean. Lint and format checks pass.
+- Browser verification confirmed acceptable preview readability across the full
+  alpha range and at zoom levels 1, 4, and 16.
 
 ## Context and orientation
 
@@ -174,6 +183,34 @@ before proceeding:
 
 If these rules cannot be made consistent with the current `PixelCanvas`
 rendering model, stop and escalate.
+
+**Stage A decision record (2026-03-25):**
+
+Reference alpha mapping confirmed against `colorUtils.ts` (unchanged):
+
+| Source alpha | Preview alpha | Hex result |
+|---|---|---|
+| `ff` (255) | `a6` (166) | `max(72, round(255×0.65))` |
+| `80` (128) | `53` (83)  | `max(72, round(128×0.65))` |
+| `08` (8)   | `48` (72)  | `max(72, round(8×0.65))`   |
+| `00` (0)   | `00` (0)   | transparent short-circuit  |
+
+Decision: **helper constants are not changing** (`PREVIEW_ALPHA_FACTOR = 0.65`,
+`PREVIEW_MIN_ALPHA = 72`). The floor at 72 (~28%) satisfies the "still visible
+at low alpha" goal, and the scale factor of 0.65 makes opaque colors read as
+tentative (`0xa6 ≈ 65%`) without being mistaken for committed pixels.
+
+No-op marker design (white outline + red diagonal slash) remains unchanged.
+It is adequate at render scales ≥ 4; at scale 1, individual pixels are
+1×1 screen pixels and no marker can be legible regardless of style.
+
+Grid-on readability matters starting at `MIN_GRID_RENDER_SCALE = 4` (grid is
+suppressed below that). Both grid-on and grid-off cases should be manually
+verified at zoom 4 and 16 during Stage F.
+
+Missing automated coverage identified: rectangle with transparent stroke color
+(`#ff000000` for the stroke slot) and opaque fill color. This is the only
+remaining gap; all other preview contract cases are already covered.
 
 ### Stage B: Tighten test coverage first
 
